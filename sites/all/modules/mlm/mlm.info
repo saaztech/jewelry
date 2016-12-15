@@ -1,0 +1,12 @@
+name = MLM
+description = Converts Drupal Commerce into a full Multi Level Marketing Platform.
+package = Multi-Level Marketing
+dependencies[] = commerce
+dependencies[] = commerce_order
+dependencies[] = commerce_checkout
+dependencies[] = commerce_payment
+core = 7.x
+
+;files[] = 
+
+

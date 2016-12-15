@@ -1,0 +1,12 @@
+{
+  "type": "service_account",
+  "project_id": "api-project-1002663885868",
+  "private_key_id": "6b77a134076d1302dd5a813ebb0b9054b5967dd8",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCqWacSm03JI/Ab\nJ3DQrPCLedhUCr5Tr+cepUzV/id/Ee2lmc/P+kgZp1r80tCuvYyFhYJrJduWgzgF\nE8C01n9bdOOh6oLPdH0O1ii3BsgrjbIWR3aLcNYoA+cV0Sf751RLQhdGNw+55Fmc\n3iq6WsNAcsZw1DzZopMCb5lqR7RdmtGSptAPkYgxhNw6bMpvFFLvBO2VD9/MSmg4\n832hRNNn9lfQLxFtvXpUjxCeDNu6nhbnQSQg3pcJLxAuCY03Nrnfrecf71lMLCV+\nBx1LGYQjz3hoD3rxL0XiL/cowDobmdBhxm6MN04a62E/WEIT03tpf2ooPfdLV0xi\nlyWvOdx9AgMBAAECggEANkNQoPCvmn7EISIzIYW1KfiqHDs/3VCPAogNLa1Dz4pa\ndQHF3K4RAXr51Mciikb+2BlrLc5lYFB0K8na/L/G2c8mI5GcEZE9tNgrKAIVCSqd\nq9Mfw9MxpJV5qs1xOyC5DTAEUe2AKOrAUOPEIJCA2aq144L3zyumQIRkDiLBJX+B\nP1B6wmDBuqDpIQ0hnUHWba3aEQVHgQbyCM23KdECEyqq8QOmVZGG2pDTINqtxFZU\n/afC5WiJ3NTy8cnLRCpVSTlGttxyIj22fvkahHVKcC5Z5TfNEMh90q0tspU/lmbo\nBZk1MjcAFo9spWT8QWBaZfsh3sQdv8yhdi3j8qn+gQKBgQDuri+DRP7FwVLP5ndV\ngg+ze+lDEkxK2EL1Y2cVbko4fqSJZIT+gI/AyOFPwLOge5pwR4WsLHAmMOccynLi\n6RYaFqGDFjUFEH0wHGC8+FYBXdqEJ5K36dpiSTDwkvIpGVh6+WN+Sy4K9U7aq7ST\n0weSiV/pX5ChIQHcYD90XCFSuQKBgQC2tiPjDNkMkAvwJfhE4Aav1rpy8wB/V59r\n+FQ+UJqc0oBhIzuFDfJeA6mpTJ/VYM8/XuB+5+GS3qwd4hVaOqJlkQyWdhfPH5Qq\n1tbFmHfjCxwe7pl6YErAolQHB5GCndDtQ+CGdPq2/M54SuzL2e2P0XynXTrYDg0F\noYXS95dF5QKBgEWAm31SPg4/+Wlo5x8TPJc7YfWSAn1Y9EaYp4/qCdrhpfAMQV4K\n+dFdrZ6Xsrbsx1Aiw54bYpz8aJBNs5632SPHq0iM0uuinZHA8bqVZhYHynXpQCQm\nCN3OCl5DrBijtMw6iupf4gx22nt6vJ6/ONlG/5LprSf+gJg3vsKXgWyhAoGBAKsQ\n/ainbtCETaka48gYuCoKMadOPTj9IRZF+xoc/aW2sNxB0IhS9olvhHouc7ekXGZI\nvogTMu//68ZO1w8TttjBZbe5+bDDMEarv4phpl29GScc3jXl0hdp5KJwQ5y3hdWf\np6g7/kE1kVqvS+XQtMvip4NLlryS6z5KbLGJfujBAoGBAOlV1JmB0YwgND8R0TWv\nM0i/I4Rgz/YEPjDSkhhYx014RQUncm3utEKQ4+zg9eHvZ7ljgV6McHkwHMJkhn/G\nrfHJutLRp3T6lEwLR6bNcMtH178pI467Ard3s9wr70L/qYw7MGU9rLx2hW8OiZms\n7vqzBIpD5j9oDjrU7fIfnGna\n-----END PRIVATE KEY-----\n",
+  "client_email": "jewelrycandledevelopment@api-project-1002663885868.iam.gserviceaccount.com",
+  "client_id": "105175486662782176289",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://accounts.google.com/o/oauth2/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/jewelrycandledevelopment%40api-project-1002663885868.iam.gserviceaccount.com"
+}

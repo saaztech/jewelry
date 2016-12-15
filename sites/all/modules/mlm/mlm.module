@@ -1,0 +1,346 @@
+<?php
+
+//use Pyrin\Core\API\Paypal\BulkPayments;
+
+function mlm_action_info() {
+  return array(
+    'mlm_process_paypal_payments' => array(
+			'type' => 'user',
+			'label' => 'Issue Payment',
+			'configurable' => false,
+			'triggers' => array(),
+    ),
+  );
+}
+
+
+function mlm_process_paypal_payments(&$account, $context) {
+	$account_wrapper = entity_metadata_wrapper('user', $account);
+	$current_balance_data = $account_wrapper->mlm_rep_balance->value();
+	$payable_balance_data = $account_wrapper->mlm_rep_payable_balance->value();
+	
+	
+	// No Balance
+	if ( empty($payable_balance_data['amount']) || $payable_balance_data <= ['amount'] ) {
+		drupal_set_message('There was an error processing the paypal payment for ' . $account->name . '. This user has no account balance.', 'warning');
+	} elseif ( empty($current_balance_data['amount']) || $payable_balance_data['amount'] > $current_balance_data['amount']) {
+		drupal_set_message('There was an error processing the paypal payment for ' . $account->name . '. This user does not have enough balance to process this payment.', 'warning');
+	} else {
+		// Build the Balance
+		$payable_balance = $payable_balance_data['amount'];
+		$payment_description = 'Paypal Deposit: $' . number_format($payable_balance / 100, 2) . '.';
+		
+		// Update the user's Balance Here	
+		mlm_rep_update_balance($account, -$payable_balance, 'payment', 0, $payment_description, 0, 0, 1);
+		
+		// Reset the Payable Balance Amount
+		$payable_balance_data['amount'] = 0;
+		$account_wrapper->mlm_rep_payable_balance->set($payable_balance_data);
+		
+		// Issue the payment via Paypal API
+		//$paypal = new BulkPayments('username', 'password', 'signature');
+		//$paypal->addPayment($account->mail, $payable_balance_data['amount']);
+		//$paypal->execute();
+		// Should I notify the representative?
+		
+		
+	}
+}
+
+
+function mlm_admin_paths_alter(&$paths) {
+  $paths['user/*/edit'] = FALSE;
+}
+
+
+	function mlm_user_login(&$edit, $account) {
+//    if (user_access('access dashboard') ) {
+//      drupal_goto('admin/dashboard');
+//      return;
+//    }
+  }
+
+
+/**
+ * Impliments hook_permission
+ */
+function mlm_permission() {
+  return array(
+    'mlm_config' => array(
+      'title' => t('Configure MLM Settings'),
+      'description' => t('Allows viewing and editing of MLM configuration.'),
+    ),
+  );
+}
+
+
+function mlm_preprocess_page($vars) {
+  //dpm($vars);
+}
+
+function mlm_theme() {
+  return array(
+    'google_chart' => array(
+      'render element' => 'chart',
+      'template' => 'theme/google_chart',
+      'variables' => array(
+        'html_id' => "chart-default",
+        'html_class' => array('well'),
+        'data' => array(),
+        'options' => array(
+          'haxis' => array('title' => ''),
+          'vAxis' => array('title' => ''),
+        ),
+      ),
+    ),
+  );
+}
+
+/**
+ * Impliments hook_menu()
+ */
+function mlm_menu() {
+  $items['admin/mlm/config'] = array(
+    'title' => 'Multi-Level Marketing Configuration',
+    'page arguments' => array('mlm_opt_form'),
+    'page callback' => 'drupal_get_form',
+    'access arguments' => array('mlm_config'),
+    //'file path' => drupal_get_path('module', 'user'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+  return $items;
+}
+
+
+// Alter Views
+function mlm_views_pre_render(&$view) {
+  if ( $view->name == 'orders_customer_accounts' ) {
+    foreach($view->result as $row => &$result) {
+      
+      
+      $result->field_commerce_order_total[0]['rendered']['#markup'] /= 100;
+      $result->field_commerce_order_total[0]['raw']['amount'] /= 100;
+//      
+//      if ( empty($result->field_commerce_order_total[0]['rendered']['#markup']) ) {
+//        $result->field_commerce_order_total[0]['rendered']['#markup'] = "0.00";
+//      } else {
+//         $result->field_commerce_order_total[0]['rendered']['#markup'] = number_format((int)$result->field_commerce_order_total[0]['rendered']['#markup'] / 100, 2);
+//      }
+//      
+//      if ( empty($result->field_commerce_order_total[0]['raw']['amount']) ) {
+//        $result->field_commerce_order_total[0]['raw']['amount'] = "0.00";
+//      } else {
+//        $result->field_commerce_order_total[0]['raw']['amount'] = number_format((int)$result->field_commerce_order_total[0]['raw']['amount'] / 100, 2);
+//      }
+//      
+//      
+      
+      
+    }
+  }
+}
+
+
+
+function mlm_opt_form($form, $form_state) {
+  $form['general'] = array(
+    '#type' => 'fieldset',
+    '#title' => 'General Configuration',
+    '#tree' => false,
+    '#collapsible' => true,
+    '#collapsed' => true,
+  );
+  
+  $form['analytics'] = array(
+    '#type' => 'fieldset',
+    '#title' => 'Google Analytics',
+    '#tree' => false,
+    '#collapsible' => true,
+    '#collapsed' => true,
+  );
+  
+  $form['shipping'] = array(
+    '#type' => 'fieldset',
+    '#title' => 'Shipping Configuration',
+    '#tree' => false,
+    '#collapsible' => true,
+    '#collapsed' => true,
+  );
+  
+  $form['downline'] = array(
+    '#type' => 'fieldset',
+    '#title' => 'Downline Configuration',
+    '#tree' => false,
+    '#collapsible' => true,
+    '#collapsed' => true,
+  );
+  
+  $form['email'] = array(
+    '#type' => 'fieldset',
+    '#title' => 'Email Configuration',
+    '#tree' => false,
+    '#collapsible' => true,
+    '#collapsed' => true,
+  );
+  
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Save',
+    '#collapsible' => true,
+    '#collapsed' => true,
+  );
+  
+  // Let's pull the submodules's configuration settings.
+  foreach (module_implements('mlm_variable') as $module) {
+    $variables = module_invoke($module, 'mlm_variable');
+    foreach ( $variables as $key => $field ) {
+      // Find the Target Path
+      if ( empty($field['#target']) ) $target = 'general';
+      else {
+        if (!array_key_exists($field['#target'], $form)) $form[$field['#target']] = array();
+        $target = $field['#target'];
+      }
+      $form[$target][$key] = $field;
+      $form[$target][$key]['#default_value'] = variable_get($key, $field['#default_value']);
+    }
+  }
+  
+  
+  return $form;
+}
+
+function mlm_opt_form_submit($form, &$form_state) {
+  drupal_set_message('MLM Marketing Configuration saved.');
+  foreach (module_implements('mlm_variable') as $module) {
+    $variables = module_invoke($module, 'mlm_variable');
+    foreach ( $variables as $key => $field ) {
+      if ( isset($form_state['values'][$key]) ) {
+        variable_set($key, $form_state['values'][$key]);
+      }
+    }
+  }
+}
+
+function mlm_commerce_shipping_calculate_rate($shipping_line_item) {
+ 
+  $shipping_units = 0;
+  $shipping_line_item_wrapper = entity_metadata_wrapper('commerce_line_item', $shipping_line_item);
+  $order_id = $shipping_line_item->order_id;
+  $order = commerce_order_load($order_id);
+  $order_wrapper = entity_metadata_wrapper('commerce_order', $order);
+  $line_items = $order_wrapper->commerce_line_items->value();
+  foreach ( $line_items as $line_item ) {
+    if ( $line_item->type != 'product' ) continue;
+    $line_item_wrapper = entity_metadata_wrapper('commerce_line_item', $line_item);
+    $product = $line_item_wrapper->commerce_product->value();
+    $product_wrapper = entity_metadata_wrapper('commerce_product', $product);
+    if ( isset($product_wrapper->field_shipping_rate) ) {
+      $shipping_units += $product_wrapper->field_shipping_rate->value() * $line_item->quantity;
+    }
+  }
+  
+  $shipping_rate = mlm_unit_shipping($shipping_units);
+  $current_shipping_value = $shipping_line_item_wrapper->commerce_unit_price->value();
+  $current_shipping_value['amount'] = $shipping_rate;
+  $current_shipping_value['data']['components'][0]['price']['amount'] = $shipping_rate;
+  $current_shipping_value['data']['components'][0]['included'] = TRUE;
+  //dpm($current_shipping_value);
+  $shipping_line_item_wrapper->commerce_unit_price = $current_shipping_value;
+  $shipping_line_item_wrapper->save();
+  
+  
+    //drupal_set_message(print_r($line_item, TRUE),'error');
+}
+
+
+function mlm_unit_shipping($units) {
+  if ( empty($units) || $units <= 0 ) return 0;
+  $maximum_units = variable_get('mlm_shipping_maximum', 5);
+  $units = min($maximum_units, $units);
+  $base = variable_get('mlm_shipping_standard', 5.99) + 0.49;
+  $minimum = variable_get('mlm_shipping_minimum', 2.50);
+  $shipping = floor($base * $units - (0.66 * pow($units, 2)) + 0.5) - 0.01;
+  $shipping = max($shipping, $minimum) * 100;
+  return $shipping;
+}
+
+
+
+
+function mlm_mlm_variable() {
+  
+  /* Shipping Rates Variables */
+  $variables = array();
+  
+  $variables['mlm_shipping_minimum'] = array(
+    '#target' => 'shipping',
+    '#title' => 'Minimum Shipping',
+    '#field_prefix' => '$',
+    '#default_value' => 2.49,
+    '#type' => 'textfield',
+    '#maxlength' => 10,
+    '#size' => 5,
+    '#element_validate' => array('element_validate_number'), 
+    '#description' => 'Enter the base shipping rate for a single tart.',
+  );
+  
+  $variables['mlm_shipping_standard'] = array(
+    '#target' => 'shipping',
+    '#title' => 'Standard Shipping',
+    '#field_prefix' => '$',
+    '#default_value' => 5.99,
+    '#type' => 'textfield',
+    '#maxlength' => 10,
+    '#size' => 5,
+    '#element_validate' => array('element_validate_number'), 
+    '#description' => 'Enter the shipping rate for a single shipping unit.',
+  );
+  
+  $variables['mlm_shipping_maximum'] = array(
+    '#target' => 'shipping',
+    '#title' => 'Maximum Units',
+    '#field_prefix' => '$',
+    '#default_value' => 5,
+    '#type' => 'textfield',
+    '#maxlength' => 10,
+    '#size' => 5,
+    '#element_validate' => array('element_validate_number'), 
+    '#description' => 'Enter the maximum number of units a customer should pay shipping for.',
+  );
+  
+  
+  $variables['mlm_downline_max_depth'] = array(
+    '#target' => 'downline',
+    '#title' => 'Downline Maximum Depth',
+    '#default_value' => 3,
+    '#type' => 'textfield',
+    '#maxlength' => 1,
+    '#size' => 5,
+    '#element_validate' => array('element_validate_integer_positive'), 
+    '#description' => 'The maximum depth for processesing representative commisions.',
+  );
+
+  
+  $depth = variable_get('mlm_downline_max_depth', 3);
+  for ( $i = 1; $i <= $depth; $i++ ) {
+    $variables['mlm_downline_value_' . $i] = array(
+      '#target' => 'downline',
+      '#title' => 'Tier ' . $i . ' Downline Commission',
+      '#field_suffix' => '%',
+      '#type' => 'textfield',
+      '#size' => 5,
+      '#maxlength' => 6,
+      '#element_validate' => array('element_validate_number'), 
+      '#description' => 'Enter the % earned on tier ' . $i . ' commissions. For 20% enter "20".',
+      '#default_value' => 0,
+    );
+  }
+  
+  return $variables;
+}
+
+
+
+
+
+

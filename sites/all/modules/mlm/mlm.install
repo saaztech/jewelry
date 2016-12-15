@@ -1,0 +1,54 @@
+<?php
+
+/**
+ * impliments hook_install()
+ */
+function mlm_install() {
+  // Rename the Technical Administrator
+  db_update('role')
+   ->fields(array('name' => 'Technical Administrator'))
+   ->condition('rid', 3)
+   ->execute();
+  
+  // Site Admin Role
+  $site_admin_role = new stdClass();
+  $site_admin_role->name = 'Administrator';
+  user_role_save($site_admin_role);
+  
+  /* Create the Site Administrator Account */
+  $site_admin_role = user_role_load_by_name("Administrator");
+  $site_admin_password = uniqid("", true);
+  $site_admin = new stdClass();
+  $site_admin->name = variable_get('site_name', 'Admin');
+  $site_admin->mail = variable_get('site_mail', '');
+  $site_admin->status = 1;
+  $site_admin->password = $site_admin_password;
+  $site_admin->roles = array(
+    DRUPAL_AUTHENTICATED_RID => TRUE,
+    $site_admin_role->rid => TRUE,
+  );
+  user_save($site_admin);
+  
+  /* Track The Site Administrator's ID */
+  $site_admin = user_load_by_name($site_admin->name);
+  variable_set('site_admin_id', $site_admin->uid);
+  
+  
+  // Site Moderator Role
+  $site_mod_role = new stdClass();
+  $site_mod_role->name = 'Moderator';
+  user_role_save($site_mod_role);
+}
+
+
+function mlm_uninstall() {
+  // Delete User Roles
+  user_role_delete('Administrator');
+  user_role_delete('Moderator');
+  
+  // Delete the Administrative User
+  $admin_id = variable_get('site_admin_id', NULL);
+  if ( !empty($admin_id) ) user_delete($admin_id);
+}
+
+

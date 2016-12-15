@@ -1,0 +1,254 @@
+<?php
+
+
+function mlm_analytics_preprocess_html($vars) {
+  $javascript = "
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', '" . variable_get('mlm_analytics', 'UA-80790514-1') . "', 'auto');
+    ga('send', 'pageview');
+  ";
+  drupal_add_js($javascript, 'inline');
+}
+
+
+//function mlm_analytics_menu() {
+//  $items['user/%user/analytics'] = array(
+//    'title' => 'Analytics',
+//    'page callback' => 'mlm_representative_analytics',
+//    'page arguments' => array('user_profile_form', 1),
+//    'access arguments' => array('mlm_rep_dashboard'),
+//    'type' => MENU_LOCAL_TASK,
+//  );
+//  return $items;
+//}
+
+function mlm_analytics_get_analytics() {
+  module_load_include('php', 'mlm_analytics', 'google-api-php-client/src/Google/autoload');
+  $service_account_email = variable_get('mlm_analytics_service_account', 'jewelry-candle-analytics@jewelry-candle.iam.gserviceaccount.com');
+  //$service_account_email = 'jewelrycandledevelopment@api-project-1002663885868.iam.gserviceaccount.com';
+  $path = drupal_get_path('module', 'mlm_analytics');
+  $key_file_location = $path . '/ClientSecret2.p12';
+  $client = new Google_Client();
+  $client->setApplicationName("Jewelry Candle");
+  $analytics = new Google_Service_Analytics($client);
+  $key = file_get_contents($key_file_location);
+  // password: notasecret
+  $cred = new Google_Auth_AssertionCredentials(
+      $service_account_email,
+      array(Google_Service_Analytics::ANALYTICS_READONLY),
+      $key,
+      'notasecret'
+  );
+  $client->setAssertionCredentials($cred);
+  if($client->getAuth()->isAccessTokenExpired()) {
+    $client->getAuth()->refreshTokenWithAssertion($cred);
+  }
+
+  return $analytics;
+}
+
+function mlm_analytics_query_sessions_and_pageviews(&$analytics, $profileId) {
+  global $user;
+  $user_wrapper = entity_metadata_wrapper('user', $user);
+  $prefix = $user_wrapper->mlm_rep_slug->value();
+  //$prefix = mlm_rep_get_prefix();
+  $options = array(
+    'filters' => 'ga:pagePath=~/' . $prefix . '/*',
+    'dimensions' => 'ga:date',
+  );
+  return $analytics->data_ga->get(
+    'ga:' . $profileId,
+    '30daysAgo',
+    'today',
+    'ga:users, ga:pageviews', $options);
+}
+
+function mlm_representative_analytics() {
+  $analytics = mlm_analytics_get_analytics();
+  
+  $property_id = variable_get('mlm_analytics', 'UA-80790514-1');
+  $account_id = variable_get('mlm_analytics_account', '80790514');
+  $profile_id = variable_get('mlm_analytics_profile', '125626597');
+  
+ 
+  //echo $profile;
+  $results = mlm_analytics_query_sessions_and_pageviews($analytics, $profile_id);
+  $output = theme('rep_analytics', array('analytics' => $results));
+  return render($output);
+}
+
+
+/** 
+ * Impliments hook_theme()
+ */
+function mlm_analytics_theme() {
+  return array(
+    'rep_analytics' => array(
+			'render element' => 'element',
+      'variables' => array('analytics' => NULL),
+      'template' => 'theme/analytics',
+    ),
+  );
+}
+
+function mlm_analytics_process_data() {
+  
+}
+
+function mlm_analytics_recent_activity($account) {
+  $analytics = mlm_analytics_get_analytics();
+  $property_id = variable_get('mlm_analytics', 'UA-75328566-1');
+  $account_id = variable_get('mlm_analytics_account', '75328566');
+  $profile_id = variable_get('mlm_analytics_profile', '118796377');
+  $user_wrapper = entity_metadata_wrapper('user', $account);
+  $prefix = $user_wrapper->mlm_rep_slug->value();
+  
+  // Generate the Results
+  $results = $analytics->data_ga->get(
+    'ga:' . $profile_id,
+    '30daysAgo',
+    'today',
+    'ga:pageviews', array(
+      'filters' => 'ga:pagePath=~/' . $prefix . '/*',
+      'dimensions' => 'ga:date',
+  )); $rows = $results->getRows();
+  
+  // Update the Date object    
+  foreach ( $rows as &$row ) {
+    $date = strtotime($row[0]);
+    $row[0] = "Date(" . date("Y, ", $date) . (date("n", $date) - 1) . date(" , j", $date) . ")";
+  }
+  
+  // Add the Legend
+  array_splice($rows, 0, 0, array(array(
+    array("type" => 'date', "label" => 'Date'), 
+    array("type" => "number", "label" => "Pageviews"), 
+  )));
+  
+  // Compile the chart
+  $chart = theme('google_chart', array(
+    "html_id" => "mlm-analytics-recent-activity",
+    'data' => $rows,
+    'html_class' => array('well', 'info'),
+    'options' => array(
+       'haxis' => array('title' => ''),
+       'vAxis' => array('title' => ''),
+     ),
+  ));
+  return $chart;
+}
+
+
+
+function mlm_analytics_recent_visitors($account) {
+  $analytics = mlm_analytics_get_analytics();
+  $property_id = variable_get('mlm_analytics', 'UA-80790514-1');
+  $account_id = variable_get('mlm_analytics_account', '80790514');
+  $profile_id = variable_get('mlm_analytics_profile', '125626597');
+  $user_wrapper = entity_metadata_wrapper('user', $account);
+  $prefix = $user_wrapper->mlm_rep_slug->value();
+  
+  // Generate the Results
+  $results = $analytics->data_ga->get(
+    'ga:' . $profile_id,
+    '30daysAgo',
+    'today',
+    'ga:users', array(
+      'filters' => 'ga:pagePath=~/' . $prefix . '/*',
+      'dimensions' => 'ga:date',
+    )); $rows = $results->getRows();
+  
+  foreach ( $rows as &$row ) {
+    $date = strtotime($row[0]);
+    $row[0] = "Date(" . date("Y, ", $date) . (date("n", $date) - 1) . date(" , j", $date) . ")";
+  }
+    
+  // Add the Legend
+  array_splice($rows, 0, 0, array(array(
+    array("type" => 'date', "label" => 'Date'), 
+    array("type" => "number", "label" => "Visitors"), 
+  )));
+   
+  // Compile the chart
+  $chart = theme('google_chart', array(
+    "html_id" => "mlm-analytics-recent-visitors",
+    'data' => $rows,
+    'html_class' => array('well', 'info'),
+    'options' => array(
+       'haxis' => array('title' => ''),
+       'vAxis' => array('title' => ''),
+     ),
+  ));
+  return $chart;
+}
+
+
+
+function mlm_analytics_mlm_variable() {
+  
+  /* Shipping Rates Variables */
+  $variables = array();
+  
+  
+  
+  $variables['mlm_analytics_account'] = array(
+    '#target' => 'analytics',
+    '#title' => 'Account ID',
+    '#default_value' => '80790514',
+    '#type' => 'textfield',
+    '#maxlength' => 13,
+    '#size' => 15,
+    '#description' => 'Enter the primary Google Analytics Account Number.',
+  );
+  
+  $variables['mlm_analytics'] = array(
+    '#target' => 'analytics',
+    '#title' => 'Tracking ID',
+    '#default_value' => 'UA-80790514-1',
+    '#type' => 'textfield',
+    '#maxlength' => 13,
+    '#size' => 15,
+    '#description' => 'Enter the google tracking id for this property.',
+  );
+  
+  $variables['mlm_analytics_profile'] = array(
+    '#target' => 'analytics',
+    '#title' => 'Profile ID',
+    '#default_value' => '125626597',
+    '#type' => 'textfield',
+    '#maxlength' => 13,
+    '#size' => 15,
+    '#description' => 'Enter the google profile id for this account.',
+  );
+  
+  $variables['mlm_analytics_service_account'] = array(
+    '#target' => 'analytics',
+    '#title' => 'Service Account Email',
+    '#default_value' => 'jewelry-candle-analytics@jewelry-candle.iam.gserviceaccount.com',
+    '#type' => 'textfield',
+    '#maxlength' => 128,
+    '#size' => 120,
+    '#description' => 'Enter the google service account email.',
+  );
+  
+  
+  
+  
+  return $variables;
+}
+
+
+
+
+//id 657401424440-nbie5hncd6v0g1gmltusbs155df5mgjs.apps.googleusercontent.com
+//secret twSnGlWy0Pa83FZENVn61fLd
+
+
+
+
+//UA-80790514-1
+//80790514

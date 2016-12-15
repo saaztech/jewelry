@@ -1,0 +1,68 @@
+<?php
+
+/**
+ * Impliments hook_permission
+ */
+function mlm_rep_package_permission() {
+  return array(
+    'mlm_rep_purchase_package' => array(
+      'title' => t('Purchase Representatives Package'),
+      'description' => t('Allows users to purchase the representative package that will upgrade their account to the representative role.'),
+    ),
+  );
+}
+
+/** 
+ * impliments hook_commerce_product_type_info()
+ */
+function mlm_rep_package_commerce_product_type_info() {
+  return array(
+    'representative_package' => array(
+      'type' => 'representative_package',
+      'name' => t('Representative Package'),
+      'description' => t('Contains products that allow a user to become a Representative upon purchase.'),
+      'help' => '',
+    ),
+  );
+}
+
+/**
+ * impliments hook_enable()
+ */
+function mlm_rep_package_enable() {
+  // Configure the Representative Package Product Type
+  commerce_product_configure_product_type('representative_package');
+}
+
+/**
+ * impliments hook_commerce_checkout_complete()
+ */
+function mlm_rep_package_commerce_checkout_complete($order) {
+  $order_wrapper = entity_metadata_wrapper('commerce_order', $order);
+  $line_items = $order_wrapper->commerce_line_items->value();
+  
+  foreach ( $line_items as $key => $line_item ) {
+    $line_item_wrapper = entity_metadata_wrapper('commerce_line_item', $line_item);
+    $product = $line_item_wrapper->commerce_product->value();
+    
+    if ( $product->type == 'representative_package' ) {
+      mlm_rep_package_upgrade_account($order->uid, $product);
+    }
+  }
+}
+
+/**
+ * Upgrades a user if they have purchased a representative package
+ * @param type $order Commerce_order 
+ * @param type $product Commerce_product that was purchased
+ */
+function mlm_rep_package_upgrade_account($user_id, $product) {
+  $user = user_load($user_id);
+  $role = user_role_load_by_name("Representative");
+  user_multiple_role_edit(array($user_id), 'add_role', $role->rid);
+  mlm_rep_welcome_package($user_id);
+}
+
+
+
+

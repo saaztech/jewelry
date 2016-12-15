@@ -1,0 +1,9 @@
+name = N3 Simple Nodes
+description = Simplify Administration of Nodes
+core = 7.x
+package = New Net Nirvana
+version = 1.0.0
+
+dependencies[] = n3_simple
+dependencies[] = node
+dependencies[] = path

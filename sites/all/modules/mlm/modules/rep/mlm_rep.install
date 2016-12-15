@@ -1,0 +1,647 @@
+<?php
+
+function mlm_rep_schema() {
+	$schema ['mlm_balance_history'] = array(
+    'description' => 'Contains balanceh history information for representitives.',
+    'fields' => array(
+      'vid' => array(
+        'description' => 'The primary identifier for balance history object.',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'uid' => array(
+        'description' => 'The user\'s whos balance was updated.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'timestamp' => array(
+        'description' => 'The Unix timestamp when the balance was updated.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'balance' => array(
+        'description' => 'The User\'s balance after the change.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'difference' => array(
+        'description' => 'The amount of change that went into the users balance.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'type' => array(
+        'description' => 'Type of update, should be order, withdrawl, chargeback, adjustment, etc....',
+        'type' => 'varchar',
+        'length' => 64,
+				'not null' => FALSE,
+				'default' => NULL,
+      ),
+      'reference_id' => array(
+        'description' => 'Optional reference id to reference specific updates such as orders.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+		'indexes' => array(
+      'timestamp' => array('timestamp'),
+      'type' => array('type'),
+			'reference_id' => array('reference_id'),
+			'balance' => array('balance'),
+    ),
+    'foreign keys' => array(
+			'uid' => array(
+				'table' => 'users',
+				'columns' => array('uid' => 'uid')
+			),
+    ),
+    'primary key' => array('vid'),
+	);
+	
+	return $schema;
+}
+
+function mlm_rep_install() {
+  // Create Use Roles 
+  mlm_rep_install_roles();
+  
+  /* MLM AFFILIATE PARENT */
+  $mlm_rep_parent_field_name = 'mlm_rep_parent';
+  $mlm_rep_parent_field = field_info_field($mlm_rep_parent_field_name);
+  $mlm_rep_parent_instance = field_info_instance('user', $mlm_rep_parent_field_name, 'user');
+  if (empty($mlm_rep_parent_field)) {
+    $mlm_rep_parent_field = array(
+      'field_name' => $mlm_rep_parent_field_name, 
+      'type' => 'entityreference', 
+      'cardinality' => 1, 
+      'entity_types' => array('user'), 
+      'translatable' => FALSE, 
+      'locked' => TRUE,
+      'settings' => array(
+        'target_type' => 'user',
+        'handler' => 'base',
+      ),
+      'default_widget' => 'entityreference_autocomplete',
+      'default_formatter' => 'entityreference_label',
+      'property_callbacks' => array('entityreference_field_property_callback'),
+    );
+    $mlm_rep_parent_field = field_create_field($mlm_rep_parent_field);
+  }
+  if (empty($mlm_rep_parent_instance)) {
+    $mlm_rep_parent_instance = array(
+      'field_name' => $mlm_rep_parent_field_name, 
+      'entity_type' => 'user', 
+      'bundle' => 'user', 
+      'label' => t('Parent Affiliate'), 
+      'required' => FALSE, 
+      'settings' => array('user_register_form' => 0), 
+      'default_value' => NULL,
+      'widget' => array (
+        'weight' => '7',
+        'type' => 'options_select',
+        'module' => 'options',
+        'active' => 1,
+        'settings' => array (),
+      ),
+      'display' => array(
+        'display' => array(
+          'label' => 'hidden', 
+          'weight' => 0,
+        ),
+      ),
+    );
+    field_create_instance($mlm_rep_parent_instance);
+  }
+  
+  /* CUSTOM PRICE FIELD */
+  $mlm_rep_balance_field_name = 'mlm_rep_balance';
+  $mlm_rep_balance_field = field_info_field($mlm_rep_balance_field_name);
+  $mlm_rep_balance_instance = field_info_instance('user', $mlm_rep_balance_field_name, 'user');
+  if (empty($mlm_rep_balance_field)) {
+    $mlm_rep_balance_field = array(
+      'field_name' => $mlm_rep_balance_field_name, 
+      'type' => 'commerce_price', 
+      'module' => 'commerce_price',
+      'cardinality' => 1, 
+      'entity_types' => array('user'), 
+      'translatable' => FALSE, 
+      'locked' => TRUE,
+    );
+    $mlm_rep_balance_field = field_create_field($mlm_rep_balance_field);
+  }
+  if (empty($mlm_rep_balance_instance)) {
+    $mlm_rep_balance_instance = array(
+      'field_name' => $mlm_rep_balance_field_name, 
+      'entity_type' => 'user', 
+      'bundle' => 'user', 
+      'label' => t('Current Affiliate Balance'), 
+      'required' => TRUE, 
+      'settings' => array(), 
+      'default_value' => 0,
+      'widget' => array(
+        'type' => 'commerce_price_full', 
+        'weight' => 0,
+        'settings' => array(
+          'currency_code' => 'default',
+          'default_value' => 0,
+        ),
+        'module' => 'commerce_price',
+      ), 
+      'display' => array(
+        'display' => array(
+          'label' => 'hidden', 
+          'weight' => 0,
+        ),
+      ),
+    );
+    field_create_instance($mlm_rep_balance_instance);
+  }
+  
+  /* CUSTOM PRICE FIELD */
+  $mlm_rep_payable_balance_field_name = 'mlm_rep_payable_balance';
+  $mlm_rep_payable_balance_field = field_info_field($mlm_rep_payable_balance_field_name);
+  $mlm_rep_payable_balance_instance = field_info_instance('user', $mlm_rep_payable_balance_field_name, 'user');
+  if (empty($mlm_rep_payable_balance_field)) {
+    $mlm_rep_payable_balance_field = array(
+      'field_name' => $mlm_rep_payable_balance_field_name, 
+      'type' => 'commerce_price', 
+      'module' => 'commerce_price',
+      'cardinality' => 1, 
+      'entity_types' => array('user'), 
+      'translatable' => FALSE, 
+      'locked' => TRUE,
+    );
+    $mlm_rep_payable_balance_field = field_create_field($mlm_rep_payable_balance_field);
+  }
+  if (empty($mlm_rep_payable_balance_instance)) {
+    $mlm_rep_payable_balance_instance = array(
+      'field_name' => $mlm_rep_payable_balance_field_name, 
+      'entity_type' => 'user', 
+      'bundle' => 'user', 
+      'label' => t('Payable Affiliate Balance'), 
+      'required' => TRUE, 
+      'settings' => array(), 
+      'default_value' => 0,
+      'widget' => array(
+        'type' => 'commerce_price_full', 
+        'weight' => 0,
+        'settings' => array(
+          'currency_code' => 'default',
+        ),
+        'module' => 'commerce_price',
+      ), 
+      'display' => array(
+        'display' => array(
+          'label' => 'hidden', 
+          'weight' => 0,
+        ),
+      ),
+    );
+    field_create_instance($mlm_rep_payable_balance_instance);
+  }
+  
+  /* Website Name Field */
+  $mlm_rep_website_field = field_info_field('mlm_rep_website');
+  $mlm_rep_website_instance = field_info_instance('user', 'mlm_rep_website', 'user');
+  if (empty($mlm_rep_website_field)) {
+    $mlm_rep_website_field = array(
+      'field_name' => 'mlm_rep_website', 
+      'type' => 'text', 
+      'cardinality' => 1, 
+      'entity_types' => array('user'), 
+      'translatable' => FALSE, 
+      'locked' => TRUE,
+    );
+    $mlm_rep_website_field = field_create_field($mlm_rep_website_field);
+  }
+  if (empty($mlm_rep_website_instance)) {
+    $mlm_rep_website_instance = array(
+      'field_name' => 'mlm_rep_website', 
+      'entity_type' => 'user', 
+      'bundle' => 'user', 
+      'label' => t('Your Website Name'), 
+      'required' => FALSE, 
+      'settings' => array(), 
+      'widget' => array(
+        'type' => 'text_textfield', 
+        'weight' => 0,
+      ), 
+      'display' => array(
+        'display' => array(
+          'label' => 'hidden', 
+          'weight' => 0,
+        ),
+      ),
+    );
+    field_create_instance($mlm_rep_website_instance);
+  }
+  
+  /* URL SLUG FIELD */
+  $mlm_rep_slug_field = field_info_field('mlm_rep_slug');
+  $mlm_rep_slug_instance = field_info_instance('user', 'mlm_rep_slug', 'user');
+  if (empty($mlm_rep_slug_field)) {
+    $mlm_rep_slug_field = array(
+      'field_name' => 'mlm_rep_slug', 
+      'type' => 'text', 
+      'cardinality' => 1, 
+      'entity_types' => array('user'), 
+      'translatable' => FALSE, 
+      'locked' => TRUE,
+    );
+    $mlm_rep_slug_field = field_create_field($mlm_rep_slug_field);
+  }
+  if (empty($mlm_rep_slug_instance)) {
+    $mlm_rep_slug_instance = array(
+      'field_name' => 'mlm_rep_slug', 
+      'entity_type' => 'user', 
+      'bundle' => 'user', 
+      'label' => t('Your Representative URL SLUG'), 
+      'required' => FALSE, 
+      'settings' => array(), 
+      'widget' => array(
+        'type' => 'text_textfield', 
+        'weight' => 0,
+      ), 
+      'display' => array(
+        'display' => array(
+          'label' => 'hidden', 
+          'weight' => 0,
+        ),
+      ),
+    );
+    field_create_instance($mlm_rep_slug_instance);
+  }
+  
+  /* Palpal Email Address */
+  $mlm_rep_paypal_field = field_info_field('mlm_rep_paypal');
+  $mlm_rep_paypal_instance = field_info_instance('user', 'mlm_rep_paypal', 'user');
+  if (empty($mlm_rep_paypal_field)) {
+    $mlm_rep_paypal_field = array(
+      'field_name' => 'mlm_rep_paypal', 
+      'type' => 'text', 
+      'cardinality' => 1, 
+      'entity_types' => array('user'), 
+      'translatable' => FALSE, 
+      'locked' => TRUE,
+    );
+    $mlm_rep_paypal_field = field_create_field($mlm_rep_paypal_field);
+  }
+  if (empty($mlm_rep_paypal_instance)) {
+    $mlm_rep_paypal_instance = array(
+      'field_name' => 'mlm_rep_paypal', 
+      'entity_type' => 'user', 
+      'bundle' => 'user', 
+      'label' => t('Enter a Paypal email to recieve payments via paypal.'), 
+      'required' => FALSE, 
+      'settings' => array(), 
+      'widget' => array(
+        'type' => 'text_textfield', 
+        'weight' => 0,
+      ), 
+      'display' => array(
+        'display' => array(
+          'label' => 'hidden', 
+          'weight' => 0,
+        ),
+      ),
+    );
+    field_create_instance($mlm_rep_paypal_instance);
+  }
+  
+  /* REP BUSINESS INFO */
+  $mlm_rep_info = field_info_field('mlm_rep_info');
+  $mlm_rep_info_instance = field_info_instance('user', 'mlm_rep_info', 'user');
+  if (empty($mlm_rep_info)) {
+    $mlm_rep_info = array(
+      'field_name' => 'mlm_rep_info', 
+      'type' => 'addressfield', 
+      'cardinality' => 1, 
+      'entity_types' => array('user'), 
+      'translatable' => FALSE, 
+      'locked' => TRUE,
+    );
+    $mlm_rep_info = field_create_field($mlm_rep_info);
+  }
+  if (empty($mlm_rep_info_instance)) {
+    $mlm_rep_info_instance = array(
+      'field_name' => 'mlm_rep_info', 
+      'entity_type' => 'user', 
+      'bundle' => 'user', 
+      'label' => t('Representative Information'), 
+      'required' => FALSE, 
+      'default_value' => NULL,
+      'settings' => array('user_register_form' => 0,),
+      'widget' => array(
+        'type' => 'addressfield_standard',
+        'module' => 'addressfield', 
+        'settings' => array(
+          'available_countries' => array ('US' => 'US'),
+          'default_country' => 'US',
+          'format_handlers' => array (
+            'address' => 'address',
+            'phone' => 'phone',
+            'organisation' => 'organisation',
+            'address-hide-country' => 'address-hide-country',
+            'organisation' => 'organisation',
+            'address-optional' => 'address-optional',
+            'address-hide-postal-code' => 0,
+            'address-hide-street' => 0,
+            'name-full' => 0,
+            'name-oneline' => 1,
+          ),
+          'phone_number_fields' => array (
+            'phone' => 'phone',
+            'extension' => 'extension',
+            'mobile' => 0,
+            'fax' => 0,
+          ),
+        ), 
+      ),
+      'display' => array(
+        'display' => array(
+          'type' => 'addressfield_default',
+          'label' => 'hidden', 
+          'weight' => 0,
+          'settings' => array (
+            'use_widget_handlers' => 1,
+            'format_handlers' => array (
+              0 => 'address',
+            ),
+          ),
+        ),
+        'default' => array(
+          'label' => 'above',
+          'type' => 'addressfield_default',
+          'settings' => array (
+            'use_widget_handlers' => 1,
+            'format_handlers' => array (
+              0 => 'address',
+            ),
+          ),
+          'module' => 'addressfield',
+          'weight' => 6,
+        ),
+      ),
+    );
+    field_create_instance($mlm_rep_info_instance);
+  }
+}
+
+function mlm_rep_uninstall() {
+  // Remove the Balance History Table
+  db_drop_table('mlm_balance_history');
+  
+  // Delete the Representative Product Type
+  commerce_product_ui_product_type_delete('representative_package', FALSE);
+  
+  // Uninstall Created Roles
+  mlm_rep_uninstall_roles();
+  
+  // Remove Created Fields
+  field_delete_field('mlm_rep_parent');
+  field_delete_field('mlm_rep_balance');
+  field_delete_field('mlm_rep_payable_balance'); 
+  field_delete_field('mlm_rep_slug');
+  field_delete_field('mlm_rep_info'); 
+  field_delete_field('mlm_rep_website'); 
+  field_delete_field('mlm_rep_paypal'); 
+  field_delete_field('mlm_rep_payment_method'); 
+}
+
+function mlm_rep_install_roles() {
+  $representative_role = new stdClass();
+  $representative_role->name = 'Representative';
+  user_role_save($representative_role);
+  
+  // Assign the Representative Role permissions
+  $representative_role = user_role_load_by_name('Representative');
+  if ( !empty($representative_role->rid) ) {
+    user_role_grant_permissions($representative_role->rid, array(
+      'mlm_rep_access_fields',
+      'mlm_rep_dashboard',
+    ));
+  }
+  
+  // Assign the administratore role permissions
+  $site_admin_role = user_role_load_by_name('Administrator');
+  if ( !empty($site_admin_role->rid) ) {
+    user_role_grant_permissions($site_admin_role->rid, array(
+      'mlm_rep_manage_fields',
+      'mlm_rep_approve_slug',
+    ));
+  }
+  
+  // Assign the moderator role permissions
+  $moderator_role = user_role_load_by_name('Moderator');
+  if ( !empty($moderator_role->rid) ) {
+    user_role_grant_permissions($moderator_role->rid, array(
+      'mlm_rep_manage_fields',
+      'mlm_rep_approve_slug',
+    ));
+  }
+  
+  
+}
+
+function mlm_rep_uninstall_roles() {
+  user_role_delete('Representative');
+}
+
+
+
+
+/**
+ * Adds the Payment Method Field
+ */
+function mlm_rep_update_7001() {
+  $mlm_rep_field_name = 'mlm_rep_payment_method';
+  $mlm_rep_field = field_info_field($mlm_rep_field_name);
+  $mlm_rep_field_instance = field_info_instance('user', $mlm_rep_field_name, 'user');
+  if (empty($mlm_rep_field)) {
+    $mlm_rep_field = array(
+      'field_name' => $mlm_rep_field_name, 
+      'type' => 'list_text', 
+      'cardinality' => 1, 
+      'entity_types' => array('user'), 
+      'translatable' => FALSE, 
+      'locked' => TRUE,
+      'settings' => array(
+        'allowed_values' => array(
+          'paypal' => 'Paypal Deposit',
+          'check' => 'Mailed Check',
+        ),
+      ),
+      'default_widget' => 'options_select',
+    );
+    $mlm_rep_field = field_create_field($mlm_rep_field);
+  }
+  if (empty($mlm_rep_field_instance)) {
+    $mlm_rep_field_instance = array(
+      'field_name' => $mlm_rep_field_name, 
+      'entity_type' => 'user', 
+      'bundle' => 'user', 
+      'label' => t('Payment Method'), 
+      
+      
+      'required' => TRUE, 
+      'description' => 'Select the how you would like to recieve your earnings payouts. A valid paypal email address is required to select paypal. In order to be paid via check, you must complete and fax the tax information form.',
+      'settings' => array('user_register_form' => 0), 
+      'default_value' => array(0 => array('value' => 'check')),
+      'widget' => array (
+        'weight' => '9',
+        'type' => 'options_select',
+        'module' => 'options',
+        'active' => 1,
+        'settings' => array()
+      ),
+      'display' => array(
+        'default' => array(
+            'label' => 'above',
+            'type' => 'list_default',
+            'settings' => array(),
+            'module' => 'list',
+            'weight' => 7
+        )
+      ),
+    );
+    field_create_instance($mlm_rep_field_instance);
+  }
+}
+
+/**
+ * Adds the Web URL Approval Checkbox
+ */
+function mlm_rep_update_7002() {
+  $mlm_rep_field_name = 'mlm_rep_approve_slug';
+  $mlm_rep_field = field_info_field($mlm_rep_field_name);
+  $mlm_rep_field_instance = field_info_instance('user', $mlm_rep_field_name, 'user');
+  if (empty($mlm_rep_field)) {
+    $mlm_rep_field = array(
+      'field_name' => $mlm_rep_field_name, 
+      'cardinality' => 1, 
+      'entity_types' => array('user'), 
+      'translatable' => FALSE, 
+      'locked' => TRUE,
+      
+      'type' => 'list_boolean', 
+      'settings' => array(
+        'allowed_values' => array(
+          0 => '',
+          1 => '',
+        ),
+      ),
+      'default_widget' => 'options_onoff',
+    );
+    $mlm_rep_field = field_create_field($mlm_rep_field);
+  }
+  if (empty($mlm_rep_field_instance)) {
+    $mlm_rep_field_instance = array(
+      'field_name' => $mlm_rep_field_name, 
+      'entity_type' => 'user', 
+      'bundle' => 'user', 
+      'label' => t('Approve Representative Website URL'), 
+      'required' => FALSE, 
+      'description' => 'Check this box if you approve this representative\'s web url. The server will then create this url path and send an email notification to the representative.',
+      'settings' => array('user_register_form' => 0), 
+      'default_value' => array(0 => array('value' => 0)),
+      'widget' => array (
+        'weight' => '9',
+        'type' => 'options_onoff',
+        'module' => 'options',
+        'active' => 1,
+        'settings' => array('display_label' => 1),
+      ),
+      'display' => array(
+        'default' => array(
+            'label' => 'above',
+            'type' => 'list_default',
+            'settings' => array(),
+            'module' => 'list',
+            'weight' => 8
+        )
+      ),
+    );
+    field_create_instance($mlm_rep_field_instance);
+  }
+}
+
+
+/**
+ * Fixes the URL Approval Field
+ */
+function mlm_rep_update_7004() {
+  $instance = field_info_instance('user', 'mlm_rep_approve_slug', 'user');
+  $instance['label'] = t('Approve Representative Website URL');
+  $instance['widget']['settings']['display_label'] = 1;
+  field_update_instance($instance);
+}
+
+
+/** 
+ * Adds a Processed Field to the account history index.
+ */
+function mlm_rep_update_7005() {
+  $field = array(
+    'description' => 'Rather or not this history item has been processed',
+    'type' => 'int',
+    'unsigned' => TRUE,
+    'not null' => TRUE,
+    'default' => 0,
+  );
+  db_add_field('mlm_balance_history', 'processed', $field);
+}
+
+
+/**
+ * Adds significant upgrades to the mlm balance history table
+ */
+function mlm_rep_update_7006() {
+  $description_field = array(
+    'description' => 'History item description.',
+    'type' => 'varchar',
+    'length' => 255,
+    'not null' => TRUE,
+    'default' => '',
+  );
+  db_add_field('mlm_balance_history', 'description', $description_field);
+  
+  $tier_field = array(
+    'description' => 'Tier level of payout.',
+    'type' => 'int',
+    'unsigned' => TRUE,
+    'not null' => TRUE,
+    'default' => 0,
+  );
+  db_add_field('mlm_balance_history', 'tier', $tier_field);
+ 
+  $rate_field = array(
+    'description' => 'The percentage rate earned on this transaction.',
+    'type' => 'numeric',
+    'precision' => 10,
+    'scale' => 4,
+    'not null' => TRUE,
+    'default' => 0,
+  );
+  db_add_field('mlm_balance_history', 'rate', $rate_field);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+

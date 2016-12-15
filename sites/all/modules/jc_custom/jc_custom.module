@@ -1,0 +1,899 @@
+<?php
+
+ini_set('max_execution_time', 3000);
+
+function jc_custom_preprocess_commerce_product(&$variables) {
+  //dpm('kevi2n');
+}
+
+function jc_custom_preprocess(&$variables, $hook) {
+  //dpm('piebaker2');
+}
+
+
+function jc_custom_menu() {
+//   $items['admin/product-import/test'] = array(
+//     'page callback' => 'jc_custom_import_test',
+//     'access arguments' => array('administer commerce_product entities'),
+//     'type' => MENU_LOCAL_TASK,
+//     'title' => 'Import Products',
+//   );
+  $items['admin/products/export'] = array(
+    'page callback' => 'jc_custom_export',
+    'page arguments' => array('all'),
+    'access arguments' => array('administer commerce_product entities'),
+    'type' => MENU_LOCAL_ACTION,
+    'title' => 'Export',
+    'weight' => 25,
+  );
+  
+  $items['admin/products/%/export'] = array(
+    'page callback' => 'jc_custom_export',
+    'page arguments' => array(2),
+    'access arguments' => array('administer commerce_product entities'),
+    'type' => MENU_LOCAL_ACTION,
+    'title' => 'Export',
+    'weight' => 25,
+  );
+  
+    
+   $items['admin/agents/import'] = array(
+     'page callback' => 'jc_agent_import',
+     //'page arguments' => array('jc_agent_import_form', 'all'),
+     'access arguments' => array('administer commerce_product entities'),
+     'type' => MENU_LOCAL_ACTION,
+     'title' => 'Import',
+     'weight' => 25,
+   );
+  
+   $items['admin/agents/fix-soaps'] = array(
+     'page callback' => 'jc_soap_import',
+     //'page arguments' => array('jc_agent_import_form', 'all'),
+     'access arguments' => array('administer commerce_product entities'),
+     'type' => MENU_LOCAL_ACTION,
+     'title' => 'Import',
+     'weight' => 25,
+   );
+  
+  $items['admin/products/import'] = array(
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('jc_custom_import_form', 'all'),
+    'access arguments' => array('administer commerce_product entities'),
+    'type' => MENU_LOCAL_ACTION,
+    'title' => 'Import',
+    'weight' => 25,
+  );
+  
+  
+  return $items;
+}
+
+function jc_soap_import() {
+  drupal_access_denied();
+  return 'COMPLETE';
+  
+  
+//   ----------------------
+  $ids = db_select('commerce_product', 'p')
+    ->fields('p', array('product_id'))
+    ->condition('p.type', 'wax_melts')
+    ->execute()
+    ->fetchCol();
+  
+  
+  
+  
+  $products = commerce_product_load_multiple($ids);
+   
+//   return 'cow';
+  foreach ( $products as $product ) {
+    
+    if ( empty($product->field_collection[LANGUAGE_NONE]) ) {
+      $product->field_collection[LANGUAGE_NONE][0]['tid'] = 127;
+      commerce_product_save($product);
+    }
+    
+    continue;
+    
+    $target_value = 0;
+    if ( strpos($product->title, 'Emoji') !== FALSE || strpos($product->sku, 'emoji') !== FALSE ) {
+      $product->field_collection[LANGUAGE_NONE][$target_value]['tid'] = 147;
+      $target_value++;
+      //$product->field_option_set[LANGUAGE_NONE][0]['target_id'] = 1;
+      //$product->field_shipping_rate[LANGUAGE_NONE][0]['value'] = 0.33;
+      
+    }
+    
+    if ( strpos($product->title, 'Companion') !== FALSE || strpos($product->sku, 'companion') !== FALSE ) {
+      $product->field_collection[LANGUAGE_NONE][$target_value]['tid'] = 128;
+      $target_value++;
+    }
+    
+    if ( strpos($product->title, 'Jumbo') !== FALSE || strpos($product->sku, 'jumbo') !== FALSE ) {
+      $product->field_collection[LANGUAGE_NONE][$target_value]['tid'] = 126;
+      $target_value++;
+    }
+    
+    if ( $target_value > 0 ) {
+      commerce_product_save($product);
+    }
+  }
+  
+  return 'awseom';
+ 
+}
+
+function jc_custom_export($product_type) {
+  $public_path = drupal_realpath(file_default_scheme() . '://');
+  $random = time();
+  $file = fopen($public_path . '/export_' . $random . '.csv', 'w');
+  fputcsv($file, array('SKU', 'Title', 'Type', 'Price', 'Status', 'Option Set', 'Description', 'Image', 'Specifications', 'Yotpo ID', 'Collection', 'Shipping Units'));
+  
+  
+  $query = new EntityFieldQuery();
+  $query->entityCondition('entity_type', 'commerce_product')
+    ->entityCondition('bundle', array('representative_package', 'representative_catalog', 'representative_scent_samplers', 'misc'), 'NOT IN')
+    ->propertyCondition('status', 1);
+  if ( $product_type != 'all' ) {
+    $query->entityCondition('bundle', $product_type);
+  } 
+  $result = $query->execute();
+  if ( empty($result['commerce_product']) ) {
+    return 'There are currently no products of this type';
+  }
+  $product_ids = array_keys($result['commerce_product']);
+  $products = commerce_product_load_multiple($product_ids);
+  
+  foreach ( $products as $product_id => $product ) {
+    //if ( $product->type != 'candle' && $product->type != 'wax_melts' ) continue;
+    $product_wrapper = entity_metadata_wrapper('commerce_product', $product);
+    $price = $product_wrapper->commerce_price->value();
+    $price_display = commerce_currency_format($price['amount'], $price['currency_code'], $product);
+    $description = $product_wrapper->field_description->value();
+    $yotpo = $product_wrapper->field_yotpo_id->value();
+
+    $option_set = $product_wrapper->field_option_set->value();
+    //$option_set = empty($option_set->option_set_id ) ? 0 : $option_set->option_set_id;
+    $option_set = empty($option_set->name ) ? 0 : $option_set->name;
+     
+    $specs = $product_wrapper->field_specifications->value();
+    $specs = empty($specs->name) ? 0 : $specs->name;
+    
+    
+    $collection_names = array();
+    $collections = $product_wrapper->field_collection->value();
+    foreach ( $collections as $cid => $collection ) {
+      if ( !empty($collection->name) ) {
+        $collection_names[] = $collection->name;
+      }
+    }
+    
+    $collections_csv = implode(', ', $collection_names);
+    $shipping_units = $product_wrapper->field_shipping_rate->value();
+    
+    
+    $line = array($product->sku, $product->title, $product->type, $price_display, $product->status, $option_set, $description, '', $specs, $yotpo, $collections_csv, $shipping_units);
+    fputcsv($file, $line);
+  }
+  
+  
+  $link = l('Download Export File', file_create_url('public://export_' . $random . '.csv'));
+  return $link;
+}
+
+function jc_agent_import() {
+  drupal_access_denied();
+  exit();
+  $path = drupal_get_path('module', 'jc_custom') . '/affiliates.csv';
+  $file = fopen($path, 'r');
+  
+  $representative_role = user_role_load_by_name("Representative");
+  
+  $page = 1;
+  $line_count = 0;
+  $process = 500 * $page;
+  while ( $line = fgetcsv($file) ) {
+    $line_count++;
+    
+    
+    if ( $line_count <= $process - 500 ) continue;    
+    if ( $line_count > $process ) break;
+    
+    list($email, $firstName, $lastName, $junk, $legacy) = $line;
+    // Fix Capitalization
+    $firstName = trim(ucwords(strtolower($firstName)));
+    $lastName = trim(ucwords(strtolower($lastName)));
+    
+    $firstName = isset($firstName) ? $firstName : '';
+    $lastName = isset($lastName) ? $lastName : '';
+    
+    
+    // Generate a SLUG
+    if ( !empty($legacy) ) {
+      $key = strtolower(trim($legacy));
+      dpm($key);
+    } else {
+      $key = $firstName . $lastName;
+      $key = preg_replace('/[^A-Za-z_]/', '', $key);  
+      dpm($key);
+    }
+    
+    if ( empty($key) ) {
+      dpm("ERROR");
+      dpm($line);
+      continue;
+    }
+    
+    $validSlug = mlm_rep_validate_prefix($key);
+    
+    
+    
+    // Calculate Full Name
+    $fullname = implode(' ', array($firstName, $lastName));
+    $account = user_load_by_name($email);
+    $account_wrapper = entity_metadata_wrapper('user', $account);
+    //$existingSlug = $account_wrapper->mlm_rep_slug->value();
+    
+    // Process the user
+    if ( !empty($account->uid) ) {
+      
+      // Approve the Representative Slug
+      if ( $validSlug ) {
+        $account_wrapper->mlm_rep_slug->set($key);
+        $account_wrapper->mlm_rep_approve_slug->set(1);
+        if ( isset($fullname) && count($fullname) > 1 ) {
+          $account_wrapper->mlm_rep_website->set($fullname);
+        }
+        $account_wrapper->save();
+        mlm_rep_enable_prefix($key);
+      }
+      
+//      if ( !empty($legacy) ) {
+//        $legacy_link = str_replace('http://www.jewelrycandles.org/#_a_', '', $legacy);
+//        $legacy_link = strtolower($legacy_link);
+//        // Save the Legacy URL
+//        db_merge('legacy_rep_url')
+//          ->key(array('uid' => $account->uid))
+//          ->fields(array(
+//            'uid' => $account->uid,
+//            'url' => $legacy_link
+//          ))
+//          ->execute();
+//      }
+      
+      
+      //$account->mlm_rep_info['und'][0]['first_name'] = $firstName;
+      //$account->mlm_rep_info['und'][0]['last_name'] = $lastName;
+      //$account->mlm_rep_info['und'][0]['name_line'] = $fullname;
+      //$account->mlm_rep_info['und'][0]['organisation_name'] = $fullname;
+      //$account->mlml_rep_payment_method['und'][0]['value'] = 'check';
+      //user_save($account);
+      
+      // Prepare the Email
+      $email_params = array(
+        'name' => $fullname,
+      );
+      
+      // Add the Slug Information
+      if ( $validSlug ) {
+        $login_link = user_pass_reset_url($account);
+        $login_link = str_replace('/store/', '/' . $key . '/', $login_link);
+        $email_params['login_url'] = $login_link;
+        $email_params['website_url'] = 'https://www.jewelrycandle.com/' . $key;
+      } else {
+        $email_params['login_url'] = user_pass_reset_url($account);
+      }
+      
+      // Send the Message
+      drupal_mail('jc_custom', 'import', $email, language_default(), $email_params);
+      
+      
+    } else {
+      dpm($line);
+      
+    }
+  }
+  
+  return 'COMPLETE: ' . $line_count;
+}
+
+
+function jc_custom_mail($key, &$message, $params) {
+  // Set the From
+   $from = '"Jewelry Candle Support" <support@jewelrycandle.com>';
+   $message['from'] = $from;
+   $message['headers']['From'] = $from;
+   $message['headers']['Sender'] = $from;
+   $message['headers']['Return-Path'] = $from;
+  
+  // Get the Name
+  $name = $params['name'];
+  if ( empty($name) ) $name = 'Representative';
+  
+  // Set the Subject
+  $message['subject'] = t('New Jewelry Candles Representative Website!');
+  
+  // Begin creating the body
+  $body = '<p>We are excited to inform you that we have recently relaunched our website on a new platform! There are going to be lots of new options and features on this new platform, including new customization options and reports you can use to track visitors to your website and sales!</p>';
+  $body .= '<p>We have automatically created a new account for you on our new platform. To login, you will need to click this link, and choose a password. Once you are logged in, you can make changes to your website including adding your name and photo to your site.</p>';
+  
+  // Get the Login URL
+  $login_url = $params['login_url'];
+  $body .= '<p><strong>One Time Login URL:</strong> <a href="' . $login_url . '">' . $login_url . '</a></p>';
+  
+  
+  // Is this user valid?
+  if ( !empty($params['website_url']) ) {
+    $web_url = $params['website_url'];
+    $body .= 'Your website has also been changed to <a href="' . $web_url . '">' . $web_url . '</a>.<br>Please make sure you use this new url when advertising your representative site.';
+  } else {
+    $body .= '<p>You will also be able to choose the new url for your personalized representative site.</p>';
+  }
+  
+  $message['body'][] = $body;
+}
+
+
+
+
+
+function jc_custom_import_form($form, &$form_state) {
+  $form['instructions'] = array(
+    '#markup' => '<p>Upload a csv import file to import products. Products with duplicate SKUs will be updated, and new SKUs will be added as new products.</p>',
+  );
+  
+  $form['confirm'] = array(
+    '#access' => false,
+    '#markup' => '<p><b>Please verify the records from the import file.</b></p>
+                  <p><span class="example-success">New Product</span> Green entries are from new products, these products will be added to the database.</p>
+                  <p><span class="example-primary">Updated Value</span> Blue entries are from existing products, where the the value will be changed if you process this import.</p>
+                  <p><span class="example-default">No Change</span> White entries are from existing products, but the value matches the current value and no change will be made.</p>
+                  <p><span class="example-warning">Not Recommended</span> Yellow entries are valid, but are not recommended. You should double check to make sure you want this value.</p>
+                  <p><span class="example-danger">Error</span> Red entries contain errors. This row will not be imported.</p>',
+  );
+  
+  $form['upload'] = array(
+    '#name' => 'upload_csv',
+    '#type' => 'managed_file',
+    '#title' => t('Import File'),
+    //'#title_display' => 'invisible',
+    '#size' => 22,
+    '#theme_wrappers' => array(),
+    '#weight' => -10,
+    '#upload_location' => 'private://',
+    '#progress_indicator' => 'bar',
+    '#upload_validators' => array('file_validate_extensions' => array('csv txt')),
+    '#required' => true,
+  );
+  
+  $form['confirm_submit'] = array(
+    '#type' => 'submit',
+    '#name' => 'confirm_submit',
+    '#value' => 'Confirm Import',
+    '#weight' => 50,
+    '#access' => false,
+    '#action' => 'confirm',
+    '#attributes' => array(
+      'class' => array('btn', 'btn-primary'),
+    )
+  );
+  
+  $form['cancel'] = array(
+    '#type' => 'submit',
+    '#name' => 'cancel',
+    '#value' => 'Cancel',
+    '#weight' => 55,
+    '#access' => false,
+    '#action' => 'cancel',
+    '#attributes' => array(
+      'class' => array('btn', 'btn-danger'),
+    )
+  );
+  
+  $form['import'] = array(
+    '#type' => 'submit',
+    '#name' => 'submit',
+    '#value' => 'Import',
+    '#weight' => 50,
+  );
+  
+  if ( !empty($form_state['csv']) ) {
+    // Update filed accesses
+    $form['upload']['#access'] = FALSE;
+    $form['import']['#access'] = FALSE;
+    $form['confirm']['#access'] = TRUE;
+    $form['cancel']['#access'] = TRUE;
+    
+    $form['instructions']['#access'] = FALSE;
+    $form['confirm_submit']['#access'] = TRUE;
+    $form['upload']['#required'] = FALSE;
+    unset($form['upload']);
+    
+    
+    $csv_data = jc_custom_import_preview($form_state['csv']);
+    $form['csv'] = array(
+      '#markup' => $csv_data,
+    );  
+  }
+  
+  return $form;
+}
+function jc_custom_import_preview($lines, $execute = FALSE) {
+  $table = array(
+    'header' => array(
+      array('data' => 'SKU'),
+      array('data' => 'Title'),
+      array('data' => 'Type'),
+      array('data' => 'Price'),
+      array('data' => 'Status'),
+      array('data' => 'Option Set'),
+      array('data' => 'Description'),
+      array('data' => 'Image'),
+      array('data' => 'Specification'),
+      array('data' => 'Yotpo ID'),
+      array('data' => 'Collection'),
+      array('data' => 'Shipping Units'),
+    ),
+    'rows' => $balance_rows,
+    'attributes' => array(
+      'class' => array('table-bordered', 'striped'),
+    ),
+  );
+  
+  // Load Values
+  $product_types = db_select('commerce_product_type', 't')->fields('t', array('type', 'name'))->execute()->fetchAllKeyed();
+  $option_sets = db_select('commerce_option_set', 't')->fields('t', array('option_set_id', 'name'))->execute()->fetchAllKeyed();
+  $specifications = db_select('taxonomy_term_data', 't')->fields('t', array('tid', 'name'))->condition('vid', 10)->execute()->fetchAllKeyed();
+  $_collections = db_select('taxonomy_term_data', 't')->fields('t', array('tid', 'name'))->condition('vid', 2)->execute()->fetchAllKeyed();
+  
+  foreach($lines as $line) {
+    if ( !empty($line[0]) & $line[0] == 'SKU' ) continue;
+    $data = array();
+    $class = 'default';
+    $errors = FALSE;
+    
+    // Convert the Line to Variables
+    list($sku, $title, $type, $price, $status, $option_set, $description, $image, $specification, $yotpo, $collection, $shipping_units) = $line;
+   
+    // Look for existing SKU
+    $product = commerce_product_load_by_sku($sku);
+    if ( empty($product) ) $class = 'success';
+
+    // Validate SKU
+    $data['sku']['data'] = $sku;
+    $valid_sku = preg_replace('/[^a-z0-9_\-]/', '', $sku);
+    if ( $valid_sku !== $sku ) { $errors = TRUE; $data['sku']['class'][] = 'danger'; }
+
+    // Title Doesn't need Validation.
+    $data['title']['data'] = htmlentities($title);
+    
+    // Product Type
+    if ( in_array($product_types, $type) ) {
+      $type = array_search($type, $product_types);
+      $data['type']['data'] = $product_types[$type];
+    } elseif ( array_key_exists($type, $product_types) ) { 
+      $data['type']['data'] = $product_types[$type];
+    } else {
+      $errors = TRUE; 
+      $data['type']['class'][] = 'danger';
+      $data['type']['data'] = $type;
+    } 
+    
+    // Price
+    $price = str_replace('$', '', $price);
+    $prive_valid = preg_replace('/[^0-9\.]/', '', $price);
+    if ( $prive_valid !== $price ) { $errors = TRUE; $data['price']['class'][] = 'danger'; }
+    $data['price']['data'] = '$' . number_format($price, 2);
+    
+    // Status
+    $status_valid = empty($status) ? '<div class="import-status">??? Disabled</div>' : '<div class="import-status">??? Enabled</div>';
+    $data['status']['data'] = $status_valid;
+    
+    // Option Set
+    if ( in_array($option_set, $option_sets) ) {
+      $option_set = array_search($option_set, $option_sets);
+      $data['option_set']['data'] = $option_sets[$option_set]; 
+    } elseif ( array_key_exists($option_set, $option_sets) ) {
+      $data['option_set']['data'] = $option_sets[$option_set];
+    } elseif ( empty($option_set) ) {
+      $option_set = NULL;
+      $data['option_set']['data'] = '<em>-None-</em>';
+      $data['option_set']['class'][] = 'warning';
+    } else {
+      $errors = TRUE; 
+      $data['option_set']['class'][] = 'danger';
+      $data['option_set']['data'] = $option_set;
+    }
+    
+    // Description
+    $valid_description = htmlentities($description);
+    if ( count($valid_description) > 28 ) $valid_description = substr($valid_description, 0, 25) . '...';
+    $data['description']['data'] = $valid_description;
+    
+    
+    // Image
+    if ( empty($image) ) {
+      if ( !empty($product->field_product_image['und'][0]['fid']) ) {
+        $data['image']['data'] = '???';
+      } else {
+        $data['image']['data'] = '???';
+      }
+    } else {
+      $data['image']['data'] = '???';
+    }
+    
+    
+    // Specifications
+    if ( in_array($specification, $specifications) ) {
+      $specification = array_search($specification, $specifications);
+      $data['specification']['data'] = $specifications[$specification];
+    } elseif ( array_key_exists($specification, $specifications) ) { 
+      $data['specification']['data'] = $specifications[$specification];
+    } else {
+      $errors = TRUE; 
+      $data['specification']['class'][] = 'danger';
+      $data['specification']['data'] = $specification;
+    } 
+    
+    // Yotpo ID
+    $data['yotpo']['data'] = htmlentities($yotpo);
+    
+    // Collections
+    if ( in_array($collection, $_collections) ) {
+      $collection = array_search($collection, $_collections);
+      $data['collection']['data'] = $_collections[$collection];
+    } elseif ( array_key_exists($collection, $_collections) ) { 
+      $data['collection']['data'] = $_collections[$collection];
+    } else {
+      $errors = TRUE; 
+      $data['collection']['class'][] = 'danger';
+      $data['collection']['data'] = $collection;
+    } 
+    
+    
+    // Shipping Units
+    $shipping_units_valid = preg_replace('/[^0-9\.]/', '', $shipping_units);
+    if ( $shipping_units_valid !== $shipping_units ) { 
+      $errors = TRUE; 
+      $data['shipping_units']['class'][] = 'danger'; 
+    } elseif ( empty($shipping_units) ) {
+      $shipping_units = 0;
+      $data['shipping_units']['class'][] = 'warning';
+    }
+    $data['shipping_units']['data'] = number_format($shipping_units, 2);
+    
+    
+    
+    // Check for Update Values
+    if ( !empty($product) ) {
+      // Title
+      if ( $product->title != $title ) $data['title']['class'] = array('primary');
+      
+      // Price
+      if ( $product->commerce_price['und'][0]['amount'] != floor($price * 100) ) $data['price']['class'] = array('primary');
+      
+      // Status
+      if ( $product->status != !empty($status) ) $data['status']['class'] = array('primary');
+        
+      // Option Set
+      if ( $product->field_option_set['und'][0]['target_id'] != $option_set ) $data['option_set']['class'] = array('primary');
+      
+      // Description
+      if ( $product->field_description['und'][0]['value'] != $description ) $data['description']['class'] = array('primary');
+      
+      // Specficiations
+      if ( $product->field_specifications['und'][0]['tid'] != $specification ) $data['specification']['class'] = array('primary');
+      
+      // Yotpo ID
+      if ( $product->field_yotpo_id['und'][0]['value'] != $yotpo ) $data['yotpo']['class'] = array('primary');
+      
+      // Collection 
+      if ( $product->field_collection['und'][0]['tid'] != $collection ) $data['collection']['class'] = array('primary');
+      
+      // Shipping Units
+      if ( $product->field_shipping_rate['und'][0]['value'] != $shipping_units ) $data['shipping_units']['class'] = array('primary');
+      
+      //dpm($product);
+    }
+    
+    
+    if ( empty($errors) && !empty($execute) ) {
+      // Execute the Product!
+      if ( empty($product) ) {
+        $product = commerce_product_new($type);
+      }
+      
+      
+      //list($sku, $title, $type, $price, $status, $option_set, $description, $image, $specification, $yotpo, $collection, $shipping_units) = $line;
+      $product->sku = $sku;
+      $product->title = $title;
+      $product->status = !empty($status);
+      
+      // Price
+      $product->commerce_price['und'][0] = array(
+        'amount' => floor($price * 100),
+        'currency_code' => commerce_default_currency(),
+        'data' => array( 'components' => array() ),
+      );
+      
+      // Option Set
+      if ( isset($collection) ) {
+        $product->field_option_set['und'][0]['target_id'] = (int)$option_set;
+      } else {
+        unset($product->field_option_set);
+      }
+      
+      // Description
+      $product->field_description['und'][0]['value'] = $description;
+      
+      // Specficiations
+      if ( isset($collection) ) {
+        $product->field_specifications['und'][0]['tid'] = (int)$specification;
+      } else {
+        unset($product->field_specifications);
+      }
+      
+      // Yotpo ID
+      $product->field_yotpo_id['und'][0]['value'] = (int)$yotpo;
+      
+      // Collection 
+      if ( isset($collection) ) {
+        $product->field_collection['und'][0]['tid'] = (int)$collection;
+      } else {
+        unset($product->field_collection);
+      }
+      
+      // Shipping Units
+      $product->field_shipping_rate['und'][0]['value'] = $shipping_units;
+      
+      //dpm($product);
+      
+      
+      // Save the Product
+      commerce_product_save($product);
+    }
+    
+    
+    
+    // Add Row to the Table
+    $table['rows'][] = array('class' => array($class), 'data' => $data);
+//     $output = theme('table', $table);
+//     return $output;
+  }
+  
+  
+  $output = theme('table', $table);
+  return $output;
+}
+
+function jc_custom_import_validate_line($line, $execute = FALSE) {
+  $data = array();
+  $class = 'primary';
+  $errors = FALSE;
+  list($sku, $title, $type, $price, $status, $option_set, $description, $image, $specifications, $yotpo, $collections, $shipping_units) = $line;
+  
+  // Look for existing SKU
+  $product = commerce_product_load_by_sku($sku);
+  
+  // Validate SKU
+  $data['sku']['data'] = $sku;
+  $valid_sku = preg_replace('/[^a-z0-9_\-]', '', $sku);
+  if ( $valid_sku !== $sku ) { $data['sku']['class'][] = 'danger'; }
+  
+  // Title Doesn't need Validation.
+  $data['title']['data'] = htmlentities($title);
+  
+  // Product Type
+  
+  
+  
+  if ( !empty($product) ) {
+    
+  } else {
+    // New Product
+    $class = 'success';
+  }
+  
+  
+  return true;
+}
+
+function jc_custom_import_form_submit($form, &$form_state) {
+  
+    // Get the Action
+    $action = ''; 
+    if ( !empty($form_state['triggering_element']['#action']) ) $action = $form_state['triggering_element']['#action'];
+  
+    if ( $action == 'confirm' && !empty($form_state['csv']) ) {
+      // Confirm Upload
+      jc_custom_import_preview($form_state['csv'], TRUE);
+      drupal_set_message('Product Import Complete', 'status');
+      drupal_goto('admin/products/import');
+      exit();
+    } elseif ( $action == 'cancel' ) {
+      // Cancel Upload
+      drupal_goto('admin/products/import');
+      exit();
+    } else {
+      // Upload File
+      $upload = file_load($form_state['values']['upload']);
+      $path = drupal_realpath($upload->uri);
+      $file = fopen($path, 'r');
+      $blah = file_get_contents($file);
+      $form_state['csv'] = array();
+      while ( $line = fgetcsv($file) ) {
+        $form_state['csv'][] = $line;
+      }
+      $form_state['rebuild'] = true;
+    }
+  
+  return $form;
+  
+}
+
+function jc_custom_import_test() {
+  $module_path = drupal_get_path('module', 'jc_custom');
+  $file = fopen($module_path . '/warmers.csv', 'r');
+  //$file_rebuild = fopen($module_path . '/current_product_status.csv', 'r');
+  $file_errors = fopen($module_path . '/product_errors.csv', 'w');
+  $errors = array();
+  //$header = fgetcsv($file);
+  $product = NULL;
+  $product_wrapper = NULL;
+  $product_type = NULL;
+  
+  $bad_products = array(
+    'Jewelry Candles Catalogs',
+    'Choose My Jewel',
+    'Brand New Scents',
+    'Jewelry Candle Company',
+    'I Love My Pet',
+    'Oatmeal Clove Ring Soap (Pick Your Ring Size)',
+    'Gift Card',
+    'Jewelry Apparel',
+    'Jewelry Clothing',
+    'Jewelry Tart Warmer',
+    'Jewelry Lotions',
+  );
+  
+  while ( $line = fgetcsv($file) ) {
+    $output = '';
+    
+    // Convert the CSV into variables.
+    list($handle, $title, $body, $vendor, $type, $tags, $published, $option1name, $option1value, 
+         $option2name, $option2value, $option3name, $option3value, $variantsku, $variantgrams,
+         $variantInventoryTracker, $variantInventoryQty, $variantInventoryPolicy, $variantFullfillmentService,
+         $variantPrice, $variantCompareAtPrice, $variantRequiresShipping, $variantTaxable, 
+         $variantBarcode, $imagesrc, $imagealt, $giftcard, $google_mpn, $google_age, $google_gender,
+         $google_category, $seo_title, $seo_description, $google_grouping, $google_labels, $google_condition, 
+         $google_custom, $google_label_0, $google_label_1, $google_label_2, $google_label_3, $google_label_4, 
+         $variantImage, $variant_weight_unit) = $line;
+    
+    // Exit out if the title or other elements are empty
+    if ( empty($title) ) continue;
+    
+    
+    
+    // Determine the product type
+//    if ( in_array($type, $bad_products) ) {
+//      fputcsv($file_errors, $line);
+//      continue;
+//    }
+    
+    // Only importing Candles right now.
+//     if ( strpos($type, 'Candle') === false &&  strpos($type, 'candle') === false ) {
+//       fputcsv($file_errors, $line);
+//       continue;
+//     }
+    
+    $product_type = 'warmer';
+//     if ( $type == 'Tarts' ) {
+//       $product_type = 'wax_melts';
+//     }
+//     if ( strpos($type, 'Candle') !== FALSE || strpos($type, 'candle') !== FALSE ) {
+//       $product_type = 'candle';
+//     } elseif ( $option1name == 'Pick Your Jewelry' ) {
+//       $product_type = 'candle';
+//       $option_set_id = 1;
+//     }
+    
+    
+     if ( empty($product_type) ) {
+       fputcsv($file_errors, $line);
+       continue;
+     }
+    
+    
+    // Check if this product already exists.
+    $product = commerce_product_load_by_sku($handle);
+    if ( $product === FALSE ) {
+      $product = commerce_product_new($product_type); 
+    } else {
+      //continue;
+    }
+    
+
+    
+    // Rebuild the Product's title.
+    $title_formated = preg_replace('/( \- .*$)/', '', $title);
+    
+    
+    // Apply Product Properties
+    $product->type = $product_type;
+    $product->title = $title;
+    $product->sku = $handle;
+    $product->uid = 1;
+    $product->language = LANGUAGE_NONE;
+    $product->commerce_price[LANGUAGE_NONE][0] = array(
+      'amount' => $variantPrice * 100, // $10
+      'currency_code' => "USD",
+    );
+    
+    // Is there a Collection? 
+    if ( !empty($option_set_id) ) {
+      $product->field_option_set[] = $option_set_id;
+    }
+    
+    // Save the Product
+    commerce_product_save($product);
+    
+    // Load the product wrapper
+    $product_wrapper = entity_metadata_wrapper('commerce_product', $product);
+    $product_wrapper->field_description->set('');
+    $product_wrapper->field_specifications->set(114);
+    
+    // Get the image!
+    if ( !empty($imagesrc) ) {
+      $image_title = preg_replace('/[^A-Za-z]/', '', $title_formated);
+      $url_path = parse_url($imagesrc, PHP_URL_PATH);
+      $extension = pathinfo($url_path, PATHINFO_EXTENSION);
+      $image_file = file_get_contents($imagesrc);
+      if ( !empty($image_file) ) {
+        $image_file_reference = file_save_data($image_file, 'public://' . $image_title . '.' . $extension, FILE_EXISTS_REPLACE);
+        $product_wrapper->field_product_image->file->set($image_file_reference);
+      }
+    }
+ 
+    // Save teh Product Wrapper
+    $product_wrapper->save();
+    
+      
+    $output .= $title_formated . '<br />';
+        
+    //return $title;
+  }
+ 
+  fclose($file);
+  fclose($file_errors);
+  return $output;
+}
+
+
+function jc_custom_form_alter(&$form, $form_state, $form_id) {
+  
+  if ($form_id == 'user_login_block' || $form_id == 'user_login') {
+    $form['name']['#title'] = 'Email Address';
+    $form['name']['#description'] = 'Enter your email address';
+  } 
+  
+  if ( $form_id == 'contact_personal_form' ) {
+    $title = 'Contact Representative';
+    $account = $form['recipient']['#value'];
+    $account_wrapper = entity_metadata_wrapper('user', $account);
+    $company_info = $account_wrapper->mlm_rep_info->value();
+    $name = $company_info['organisation_name'];
+    if ( !empty($name) ) {
+      $title = 'Contact ' . $name;
+      $form['to']['#markup'] = $name;
+    } else {
+      $form['to']['#markup'] = 'Representative';
+    }
+    drupal_set_title($title);
+  }
+}
+
+// function jc_custom_form_commerce_cart_add_to_cart_form_alter(&$form, &$form_state, $form_id) {
+//   dpm($form);
+// }
+  
+

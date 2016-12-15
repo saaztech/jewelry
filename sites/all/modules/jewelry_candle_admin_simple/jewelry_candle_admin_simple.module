@@ -1,0 +1,604 @@
+<?php
+
+function jewelry_candle_admin_simple_menu_local_tasks_alter(&$data, $router_item, $root_path) {
+  switch($root_path){  
+    case 'admin/products/%' : // for example 'page/view/news'
+      $item = menu_get_item('admin/commerce/products/add/' . $router_item['page_arguments'][2]); 
+      if ($item['access']) {       
+        $data['actions']['output'][] = array(
+          '#theme' => 'menu_local_action',
+          '#link' => $item,
+        );
+      }
+      jewelry_candle_admin_simple_add_product_tabs($data, $router_item['page_arguments'][2]);
+    break;  
+    case 'admin/products' :
+      $item = menu_get_item('admin/commerce/products/add'); 
+      if ($item['access']) {       
+        $data['actions']['output'][] = array(
+          '#theme' => 'menu_local_action',
+          '#link' => $item,
+        );
+      }
+      jewelry_candle_admin_simple_add_product_tabs($data);
+    break;
+  }  
+}
+
+
+function jewelry_candle_admin_simple_add_product_tabs(&$data, $active_type = 'all') {
+  $data['tabs'][0]['count'] = 1;
+  $data['tabs'][0]['output'][] = array(
+      '#theme' => 'menu_local_task',
+      '#active' => $active_type == 'all',
+      '#link' => array(
+        'title' => 'All Products',
+        'href' => 'admin/products/',
+        'localized_options' => array(
+          'attributes' => array(
+            'title' => t('All Products'),
+          ),
+        ),
+      ),
+    );
+  
+  foreach (commerce_product_types() as $type => $product_type) {
+    //$tab = menu_get_item('admin/products/' . $router_item['page_arguments'][2]); 
+    //$tab['title'] = $product_type['name'];
+    $data['tabs'][0]['count'] += 1;
+    $data['tabs'][0]['output'][] = array(
+      '#theme' => 'menu_local_task',
+      '#active' => $type == $active_type,
+      '#link' => array(
+        'title' => $product_type['name'],
+        'href' => 'admin/products/' . $type,
+        'localized_options' => array(
+          'attributes' => array(
+            'title' => $product_type['name'],
+          ),
+        ),
+      ),
+    );
+  }
+
+  
+  
+}
+
+//
+//
+//function jewelry_candle_admin_simple_menu() {
+//  
+//  $file_path = drupal_get_path('module', 'commerce_product_ui');
+//  foreach (commerce_product_types() as $type => $product_type) {
+//    $items['admin/products/' . strtr($type, array('_' => '-')) . '/add'] = array(
+//      'title' => 'Create !name',
+//      'title arguments' => array('!name' => $product_type['name']),
+//      'description' => $product_type['description'],
+//      'page callback' => 'commerce_product_ui_product_form_wrapper',
+//      'page arguments' => array(commerce_product_new($type)),
+//      'access callback' => 'commerce_product_access',
+//      'access arguments' => array('create', commerce_product_new($type)),
+//      'file' => 'includes/commerce_product_ui.products.inc',
+//      'file path' => $file_path,
+//      'type' => MENU_LOCAL_ACTION,
+//      'tab_parent' => 'admin/products/' . strtr($type, array('_' => '-')),
+//    );
+//  }
+//  
+//  return $items;
+//  
+//}
+
+function jewelry_candle_admin_simple_simple_control_panel() {
+  
+  
+  
+  $query = new EntityFieldQuery;
+  $results = $query
+      ->entityCondition('entity_type', 'user')
+      ->propertyCondition('status', 1)
+      ->fieldCondition('mlm_rep_slug', 'value', '', '!=')
+      ->fieldCondition('mlm_rep_approve_slug', 'value', 1, '!=')
+      ->execute();
+  $pending_accounts = array_key_exists('user', $results) ? count($results['user']) : 0;
+  $pending_badge = !empty($pending_accounts) ? ' <span class="label label-blue">' . $pending_accounts . '</span>' : '';
+  
+  $query = new EntityFieldQuery;
+  $results = $query
+      ->entityCondition('entity_type', 'commerce_order')
+      ->propertyCondition('status', 'pending')
+      ->execute();
+  $pending_orders = array_key_exists('commerce_order', $results) ? count($results['commerce_order']) : 0;
+  $orders_badge = ' <span class="label label-blue">' . $pending_orders . '</span>';
+	
+	$links = array(
+		
+		array(
+			'#icon' => 'tachometer',
+			'#weight' => -100,
+			'#name' => 'Dashboard',
+			'#path' => 'admin/dashboard',
+		),
+    array('#name' => '--'),
+    
+		array(
+			'#icon' => 'file-text',
+			'#weight' => 0,
+			'#name' => 'Homepage Slider',
+			'#path' => 'node/18/edit',
+    ),
+		
+		array(
+			'#icon' => 'file-text',
+			'#weight' => 0,
+			'#name' => 'Pages',
+			'#path' => 'admin/content/manage/page',
+      
+      'manage' => array(
+				'#name' => 'Manage',
+				'#path' => 'admin/content/manage/page',
+			),
+      
+      'add' => array(
+				'#name' => 'Add',
+				'#path' => 'node/add/page',
+        '#options' => array('query' => array('destination' => 'admin/content/manage/page')),
+			),
+    ),
+		
+		array(
+			'#icon' => 'edit',
+			'#weight' => 0,
+			'#name' => 'Articles',
+			'#path' => 'admin/content/manage/article',
+      
+      'manage' => array(
+				'#name' => 'Manage',
+				'#path' => 'admin/content/manage/article',
+			),
+      
+      'add' => array(
+				'#name' => 'Add',
+				'#path' => 'node/add/article',
+        '#options' => array('query' => array('destination' => 'admin/content/manage/article')),
+			),
+    ),
+    
+		array(
+			'#icon' => 'bars',
+			'#weight' => 0,
+			'#name' => 'Menus',
+			'#path' => 'admin/structure/menu',
+			),
+    
+    
+    
+//		array(
+//			'#icon' => 'sitemap',
+//			'#weight' => 20,
+//			'#name' => 'Taxonomy',
+//			'#path' => 'admin/structure/taxonomy',
+//			
+//			'vocabs' => array(
+//				'#name' => 'Vocabularies',
+//				'#path' => 'admin/structure/taxonomy',
+//			),
+//		),
+		array('#name' => '--'),
+    array(
+			'#icon' => 'cubes',
+			'#weight' => 0,
+			'#name' => 'Products',
+			'#path' => 'admin/products',
+      
+      'all' => array(
+				'#name' => 'All Products',
+				'#path' => 'admin/products',
+			),
+    ),
+    
+    array(
+			'#icon' => 'star',
+			'#weight' => 0,
+			'#name' => 'Featured',
+			'#path' => 'featured_products/featured_products/1',
+      '#options' => array('query'=>array('destination' => 'admin/products')),
+    ),
+    
+    array(
+      '#icon' => 'shopping-cart',
+      '#weight' => 5,
+      '#name' => 'Orders' . $orders_badge,
+      '#path' => 'admin/commerce/orders',
+      
+      'manage' => array(
+        '#name' => 'Manage Orders',
+        '#path' => 'admin/commerce/orders',  
+      ),
+      
+      'pending' => array(
+        '#name' => 'Pending Orders',
+        '#path' => 'admin/commerce/orders/pending',  
+      ),
+      
+      'cart' => array(
+        '#name' => 'Manage Carts',
+        '#path' => 'admin/commerce/orders/carts',  
+      ),
+    ),
+    
+    array(
+      '#icon' => 'scissors',
+      '#weight' => 5,
+      '#name' => 'Discounts',
+      '#path' => 'admin/commerce/discounts',
+      
+      'disc' => array(
+        '#name' => 'Manage Discounts',
+        '#path' => 'admin/commerce/discounts',  
+      ),
+      
+      'disc' => array(
+        '#name' => 'Manage Coupons',
+        '#path' => 'admin/commerce/coupons',  
+      ),
+      
+      
+    ),
+    
+//    array(
+//      '#icon' => 'scissors',
+//      '#weight' => 5,
+//      '#name' => 'Coupons',
+//      '#path' => 'admin/commerce/coupons',
+//    ),
+//		
+		array(
+			'#icon' => 'users',
+			'#weight' => 40,
+			'#name' => 'People',
+			'#path' => 'admin/accounts',
+			
+			'all' => array(
+				'#name' => 'User Accounts',
+				'#path' => 'admin/accounts',
+			),
+      
+      'customers' => array(
+				'#name' => 'Customers',
+				'#path' => 'admin/commerce/customer-profiles/list',
+			),
+      
+      'representatives' => array(
+				'#name' => 'Representatives',
+				'#path' => 'admin/accounts/representatives',
+			),
+      
+      'admins' => array(
+				'#name' => 'Administrators',
+				'#path' => 'admin/accounts/administrators',
+			),
+      
+      'permissions' => array(
+        '#name' => 'Permissions',
+        '#path' => 'admin/people/permissions',
+      ),
+      
+      'config' => array(
+        '#name' => 'Config',
+        '#path' => 'admin/config/people/accounts',
+      ),
+      
+      
+		),
+    
+
+    
+    array(
+			'#icon' => 'user-plus',
+			'#weight' => 40,
+			'#name' => 'Pending Reps' . $pending_badge,
+			'#path' => 'admin/accounts/representatives/pending',
+    ),
+    
+    array(
+      '#icon' => 'money',
+			'#weight' => 40,
+			'#name' => 'Rep Payments',
+			'#path' => 'admin/payments/reports',
+      
+      'reports' => array(
+				'#name' => 'Payment Reports',
+				'#path' => 'admin/payments/reports',
+			),
+      
+      'process' => array(
+				'#name' => 'Paypal Payments',
+				'#path' => 'admin/payments/paypal',
+			),
+    ),
+    
+    array(
+			'#icon' => 'object-group',
+			'#weight' => 40,
+			'#name' => 'Collections',
+			'#path' => 'admin/structure/taxonomy/candle_collections',
+    ),
+    
+    array(
+			'#icon' => 'list-alt',
+			'#weight' => 40,
+			'#name' => 'Specifications',
+			'#path' => 'admin/structure/taxonomy/specifications',
+    ),
+    
+    array(
+			'#icon' => 'diamond',
+			'#weight' => 40,
+			'#name' => 'Jewelry',
+			'#path' => 'admin/structure/taxonomy/jewelry',
+    ),
+    
+    array(
+			'#icon' => 'circle-o',
+			'#weight' => 40,
+			'#name' => 'Rings',
+			'#path' => 'admin/structure/taxonomy/ring_sizes',
+    ),
+    
+    array(
+			'#icon' => 'fire',
+			'#weight' => 40,
+			'#name' => 'Scents',
+			'#path' => 'admin/structure/taxonomy/scents',
+      
+      'jewel' => array(
+				'#name' => 'Jewelry Scents',
+				'#path' => 'admin/structure/taxonomy/scents',
+			),
+      
+      'rose' => array(
+				'#name' => 'Rose Scents',
+				'#path' => 'admin/structure/taxonomy/rose_scents',
+			),
+    ),
+		
+    array(
+			'#icon' => 'paint-brush',
+			'#weight' => 40,
+			'#name' => 'Rose Colors',
+			'#path' => 'admin/structure/taxonomy/rose_colors',
+      
+//       'rose' => array(
+// 				'#name' => 'Rose Scents',
+// 				'#path' => 'admin/structure/taxonomy/rose_colors',
+// 			),
+    ),
+		
+		array(
+			'#icon' => 'shirtsinbulk',
+			'#weight' => 40,
+			'#name' => 'Shirt Sizes',
+			'#path' => 'admin/structure/taxonomy/shirt_sizes',
+    ),
+    
+    array(
+			'#icon' => 'sitemap',
+			'#weight' => 40,
+			'#name' => 'MLM Config',
+			'#path' => 'admin/mlm/config',
+    ),
+    array('#name' => '--'),
+    
+    // *** --->    <---***/  
+    
+		
+		array(
+			'#icon' => 'picture-o',
+			'#weight' => 25,
+			'#name' => 'Media',
+			'#path' => 'admin/content/file',
+			
+			'browse' => array(
+				'#name' => 'Browse Media',
+				'#path' => 'admin/content/file/thumbnails',
+			),
+			
+			'new' => array(
+				'#name' => 'Upload Media',
+				'#path' => 'file/add',
+			),
+		),
+		
+		array(
+			'#icon' => 'paint-brush',
+			'#weight' => 30,
+			'#name' => 'Appearance',
+			'#path' => 'admin/appearance',
+			
+			'themes' => array(
+				'#name' => 'Themes',
+				'#path' => 'admin/appearance',
+			),
+      
+//      'menus' => array(
+//				'#name' => 'Menus',
+//				'#path' => 'admin/structure/menu',
+//			),
+      
+      'menus' => array(
+				'#name' => 'Menus',
+				'#path' => 'admin/structure/menu',
+			),
+      
+			'blocks' => array(
+				'#name' => 'Blocks',
+				'#path' => 'admin/structure/block',
+			),
+      
+      
+		),
+
+//    array(
+//			'#icon' => 'list-alt',
+//			'#weight' => 35,
+//			'#name' => 'Menus',
+//			'#path' => 'admin/menus',
+//    ),
+    
+		array(
+			'#icon' => 'puzzle-piece',
+			'#weight' => 35,
+			'#name' => 'Modules',
+			'#path' => 'admin/modules',
+			
+			'installed' => array(
+				'#name' => 'Installed Modules',
+				'#path' => 'admin/modules',
+			),
+			
+			'new' => array(
+				'#name' => 'Add New',
+				'#path' => 'admin/modules/install',
+			),
+			
+			'update' => array(
+				'#name' => 'Update Modules',
+				'#path' => 'admin/modules/update',
+			),
+		),
+		
+
+		
+		array(
+			'#icon' => 'wrench',
+			'#weight' => 45,
+			'#name' => 'Tools',
+			'#path' => 'admin/config',
+      
+      'url_patterns' => array(
+				'#name' => 'Permalinks',
+				'#path' => 'admin/config/search/path/patterns',
+			),
+      'metatags' => array(
+				'#name' => 'Metatags',
+				'#path' => 'admin/config/search/metatags',
+			),
+      'xml_sitemap' => array(
+				'#name' => 'XML Sitemap',
+				'#path' => 'admin/config/search/xmlsitemap',
+			),
+      'analytics' => array(
+				'#name' => 'Google Analytics',
+				'#path' => 'admin/reports/google-analytics-reports/page',
+			),
+      'redirects' => array(
+				'#name' => 'Global 301 Redirects',
+				'#path' => 'admin/config/system/globalredirect',
+			),
+		),
+    
+    array(
+			'#icon' => 'server',
+			'#weight' => 40,
+			'#name' => 'Server Structure',
+			'#path' => 'admin/structure',
+      
+       'ct' => array(
+				'#name' => 'Content Types',
+				'#path' => 'admin/structure/types',
+			),
+      
+      'entity' => array(
+				'#name' => 'Entities',
+				'#path' => 'admin/structure/entity-type',
+			),
+      
+      'tax' => array(
+				'#name' => 'Taxonomy',
+				'#path' => 'admin/structure/taxonomy',
+			),
+      
+      'views' => array(
+				'#name' => 'Views',
+				'#path' => 'admin/structure/views',
+			),
+      
+      'collections' => array(
+				'#name' => 'Field Collections',
+				'#path' => 'admin/structure/field-collections',
+			),
+      
+      'store' => array(
+        '#name' => 'Commerce',
+        '#path' => 'admin/commerce',
+      ),
+      
+    ),
+		
+		array(
+			'#icon' => 'cog',
+			'#weight' => 50,
+			'#name' => 'Settings',
+			'#path' => 'admin/config',
+			
+			'control_panel' => array(
+				'#name' => 'Control Panel',
+				'#path' => 'admin/config',
+			),
+			
+			'site_information' => array(
+				'#name' => 'Site Information',
+				'#path' => 'admin/config/system/site-information',
+			),
+			
+			'performance' => array(
+				'#name' => 'Performance',
+				'#path' => 'admin/config/development/performance',
+			),
+		),
+	);
+	
+  $product_types = commerce_product_types();
+  foreach ( $product_types as $machine_name => $product_type ) {
+    $links[5][$machine_name] = array(
+      '#name' => $product_type['name'],
+      '#path' => 'admin/products/' . $machine_name,
+    );
+  }
+  
+//  
+//	$nodes = db_select('node_type', 'n')
+//		->fields('n', array('type', 'name'))
+//		->orderBy('n.name', 'DESC')
+//		->condition('n.type', 'webform', '!=')
+//    ->condition('n.type', 'page', '=')
+//		->execute();
+//	
+//	while ( $node = $nodes->fetchObject() ) {
+//		$icon = $node->type == 'article' ? 'edit' : ( $node->type == 'page' ? 'file-text' : 'file-text-o');
+//		$name = ucwords($node->name);
+//		$link = array(
+//			'#icon' => $icon,
+//			'#weight' => 50,
+//			'#name' => $name,
+//			'#path' => 'admin/content/' . $node->type,
+//			
+//			'manage' => array(
+//				'#name' => 'Manage',
+//				'#path' => 'admin/content/' . $node->type,
+//			),
+//			
+//			'new' => array(
+//				'#name' => 'Add New',
+//				'#path' => 'node/add/' . $node->type,
+//			),
+//		);
+//		array_splice($links, 2, 0, array($link));
+//	}	
+	
+	
+	return $links;
+	
+}

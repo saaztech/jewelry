@@ -1,0 +1,9 @@
+.n3-simple-textfield-incognito:not(:focus) {
+  border: none;
+  padding: 0;
+  margin-left: -4px;
+}
+
+.n3-simple-inline-fieldset {
+  
+}

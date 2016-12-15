@@ -1,0 +1,335 @@
+
+body.toolbar {
+  padding-top: 2.2em;
+}
+body.toolbar-drawer {
+  padding-top: 5.3em;
+}
+
+/**
+ * Aggressive resets so we can achieve a consistent look in hostile CSS
+ * environments.
+ */
+#toolbar,
+#toolbar * {
+  border: 0;
+  font-size: 100%;
+  line-height: inherit;
+  list-style: none;
+  margin: 0;
+  outline: 0;
+  padding: 0;
+  text-align: left; /* LTR */
+  vertical-align: baseline;
+}
+
+/**
+ * Base styles.
+ *
+ * We use a keyword for the toolbar font size to make it display consistently
+ * across different themes, while still allowing browsers to resize the text.
+ */
+#toolbar {
+  background: #666;
+  color: #ccc;
+  font: normal small "Lucida Grande", Verdana, sans-serif;
+  left: 0;
+  margin: 0 -20px;
+  padding: 0 20px;
+  position: fixed;
+  right: 0;
+  top: 0;
+  z-index: 6000;
+	font-size: 16px;
+}
+#toolbar div.collapsed {
+  display: none;
+  visibility: hidden;
+}
+#toolbar a {
+  color: #fff;
+  font-size: .846em;
+  text-decoration: none;
+}
+#toolbar ul li,
+#toolbar ul li a {
+  float: left; /* LTR */
+}
+
+/**
+ * Administration menu.
+ */
+#toolbar div.toolbar-menu {
+  background: #333;
+  line-height: 20px;
+  padding: 0px 50px 0px 10px; /* LTR */
+  position: relative;
+}
+#toolbar-home a span {
+  background: url(toolbar.png) no-repeat 0 -45px;
+  display: block;
+  height: 14px;
+  margin: 3px 0px;
+  text-indent: -9999px;
+  vertical-align: text-bottom;
+  width: 11px;
+}
+#toolbar-user {
+  float: right; /* LTR */
+}
+#toolbar-menu {
+  float: left; /* LTR */
+}
+#toolbar div.toolbar-menu a.toggle {
+  background: url(toolbar.png) 0 -20px no-repeat;
+  bottom: 0;
+  cursor: pointer;
+  height: 25px;
+  overflow: hidden;
+  position: absolute;
+  right: 10px; /* LTR */
+  text-indent: -9999px;
+  width: 25px;
+}
+#toolbar div.toolbar-menu a.toggle:focus,
+#toolbar div.toolbar-menu a.toggle:hover {
+  background-position:  -50px -20px;
+}
+#toolbar div.toolbar-menu a.toggle-active {
+  background-position:  -25px -20px;
+}
+#toolbar div.toolbar-menu a.toggle-active.toggle:focus,
+#toolbar div.toolbar-menu a.toggle-active.toggle:hover {
+  background-position:  -75px -20px;
+}
+
+#toolbar div.toolbar-menu > ul > li {
+	position: relative;
+}
+
+#toolbar div.toolbar-menu > ul {
+	
+}
+
+#toolbar div.toolbar-menu ul .sub {
+	display: none;
+}
+
+#toolbar div.toolbar-menu ul .sub {
+	position: absolute;
+	top: 25px;
+	left: 0px;
+	padding: 5px 0;
+}
+
+#toolbar div.toolbar-menu ul .sub li {
+	float: none;
+}
+
+#toolbar div.toolbar-menu ul .sub li a {
+	float: none;
+	display: block;
+	width: 200px;
+	background: #444;
+	border-radius: 0;
+	padding: 4px 10px;
+}
+
+#toolbar div.toolbar-menu ul .sub li a:hover {
+	background: #555;
+}
+
+#toolbar div.toolbar-menu ul:hover .sub {
+	display: block;
+}
+
+#toolbar div.toolbar-menu ul:hover > li.first {
+	background: #444;
+}
+
+#toolbar div.toolbar-menu ul li.first {
+	display: block;
+	padding-top: 5px;
+	padding-bottom: 5px;
+}
+
+#toolbar div.toolbar-menu ul li a {
+  padding: 0 10px;
+  -moz-border-radius: 10px;
+  -webkit-border-radius: 10px;
+  border-radius: 10px;
+}
+#toolbar div.toolbar-menu ul li a:focus,
+#toolbar div.toolbar-menu ul li a:hover,
+#toolbar div.toolbar-menu ul li a:active,
+#toolbar div.toolbar-menu ul li a.active:focus {
+  background: #444;
+}
+
+#toolbar div.toolbar-menu ul li a.active:active,
+#toolbar div.toolbar-menu ul li a.active {
+  /*background: url(toolbar.png) 0 0 repeat-x;*/
+  background: #222;
+  text-shadow: #333 0 1px 0;
+}
+
+
+
+
+#toolbar div.toolbar-menu ul li.active-trail a {
+	background: #0074BD;
+  text-shadow: none;
+}
+
+/**
+ * Collapsed drawer of additional toolbar content.
+ */
+#toolbar div.toolbar-drawer {
+  position: relative;
+  padding: 0 10px;
+}
+
+/**
+ * IE 6 Fix.
+ *
+ * IE 6 shows elements with position:fixed as position:static so we replace
+ * it with position:absolute; toolbar needs its z-index to stay above overlay.
+ */
+* html #toolbar {
+  left: -20px;
+  margin: 0;
+  padding-right: 0;
+  position: absolute;
+  right: 0;
+  width: 100%;
+}
+
+
+
+#n3-simple-toolbar-control-panel  {
+	box-sizing: border-box;
+}
+
+#n3-simple-toolbar-control-panel {
+ 	width: 200px; 
+	position: fixed;
+	top: 30px;
+	left: -200px;
+	bottom: 0px;
+	background-color: #333;
+	color: #fff;
+ 	padding: 20px 0;
+	z-index: 5000;
+	-webkit-font-smoothing: subpixel-antialiased;
+	font-family: 'Open Sans', 'Segoe UI', Helvetica, sans-serif;
+}
+
+.toolbar-expanded #n3-simple-toolbar-control-panel {
+	left: 0px;
+}
+
+body.toolbar-expanded {
+	padding-left: 200px;
+}
+
+#n3-simple-toolbar-control-panel ul {
+	margin: 0;
+	padding: 0;
+}
+
+#n3-simple-toolbar-control-panel ul.menu > li {
+	padding: 0;
+}
+
+#n3-simple-toolbar-control-panel > .menu > li {
+	position: relative;
+}
+
+#n3-simple-toolbar-control-panel > .menu > li > a {
+	font-size: 14px !important;
+  font-weight: 400;
+  line-height: 16px;
+	color: #fff;
+	-webkit-font-smoothing: subpixel-antialiased;
+	display: block;
+	padding: 6px 10px 6px 10px;
+}
+
+#n3-simple-toolbar-control-panel > .menu > li > a:before {
+	display: inline-block;
+	font-family: 'FontAwesome';
+    font-style: normal;
+    font-weight: 400;
+	font-size: inherit;
+	text-rendering: auto;
+	line-height: 1;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	    box-sizing: border-box;
+	
+	padding-right: 5px;
+}
+
+#n3-simple-toolbar-control-panel hr {
+	margin: 0 10px;
+	border: 1px solid gray;
+    height: 1px;
+}
+
+#n3-simple-toolbar-control-panel li {
+	    list-style: none;
+}
+
+#n3-simple-toolbar-control-panel > ul.menu > li.active > a,
+#n3-simple-toolbar-control-panel > ul.menu > li.active > a.active:hover {
+	background: #0074BD;
+	cursor: default;
+}
+
+#n3-simple-toolbar-control-panel > .menu .menu a.active {
+	color: #fff;
+	font-weight: bold;
+}
+
+
+
+#n3-simple-toolbar-control-panel > ul.menu > li > a:hover {
+	background: #0074BD;
+	text-decoration: none;
+}
+
+#n3-simple-toolbar-control-panel > .menu > li > .menu {
+ 	display: none;
+	position: absolute;
+	left: 200px;
+	top: 0px;
+}
+
+#n3-simple-toolbar-control-panel > .menu > li:hover > .menu {
+	display: block;
+}
+
+#n3-simple-toolbar-control-panel > .menu > li.active > .menu {
+	display: block;
+	position: static;
+}
+
+#n3-simple-toolbar-control-panel  .menu  .menu > li a {
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 16px;
+    background-color: #4A5259;
+    padding-left: 20px;
+    width: 200px;
+    color: #D6E1E0;
+    -webkit-font-smoothing: subpixel-antialiased;
+    display: block;
+    padding: 4px 10px 4px 30px;
+    box-sizing: border-box;
+}
+
+#n3-simple-toolbar-control-panel ul.menu ul.menu > li a:hover {
+	color: #0074BD;
+	text-decoration: none;
+}
+

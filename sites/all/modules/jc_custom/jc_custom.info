@@ -1,0 +1,10 @@
+name = Jewelry Candle Custom Functions
+description = Provides a series of custom functions for Jewelry Candles website.
+package = Jewelry Candle
+dependencies[] = commerce
+dependencies[] = commerce_order
+dependencies[] = commerce_checkout
+dependencies[] = commerce_payment
+core = 7.x
+
+

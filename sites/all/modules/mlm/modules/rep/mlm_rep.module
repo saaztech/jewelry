@@ -1,0 +1,1322 @@
+<?php
+
+
+/**
+ * Impliments hook_permission
+ */
+function mlm_rep_permission() {
+  return array(
+    'mlm_rep_dashboard' => array(
+      'title' => t('Access Representatives Dashboard'),
+      'description' => t('Allows access to the representative\'s dashboard.'),
+    ),
+    'mlm_rep_access_fields' => array(
+      'title' => t('Access Representatives Fields'),
+      'description' => t('Allows access to view and edit a user\'s own representitive fields.'),
+    ),
+    'mlm_rep_manage_fields' => array(
+      'title' => t('Manage Representatives Fields'),
+      'description' => t('Allows access to view and edit any user\'s representitive fields.'),
+    ),
+    'mlm_rep_approve_slug' => array(
+      'title' => t('Approve Representatives Slugs'),
+      'description' => t('Allows a user to authorize url slugs for representatives.'),
+    ),
+    'mlm_rep_purchase_package' => array(
+      'title' => t('Purchase Representatives Package'),
+      'description' => t('Allows users to purchase the representative package that will upgrade their account to the representative role.'),
+    ),
+  );
+}
+
+/** 
+ * Impliments hook_theme()
+ */
+function mlm_rep_theme() {
+  return array(
+    'representative' => array(
+			'render element' => 'representative',
+      'variables' => array('account' => NULL),
+      'template' => 'theme/account.display',
+    ),
+    'rep_header' => array(
+			'render element' => 'element',
+      'variables' => array(
+        'rep_link' => '',
+        'rep_image' => '',
+        'rep_name' => '',
+        'rep_phone' => '',
+      ),
+      'template' => 'theme/rep_header',
+    ),
+  );
+}
+
+/**
+ * Impliments hook_menu()
+ */
+function mlm_rep_menu() {
+  $items['admin/payments/process'] = array(
+    'title' => 'Process Representative Payments',
+    'page callback' => 'mlm_rep_cron',
+    'access arguments' => array('mlm_rep_access_fields'),
+    //'file path' => drupal_get_path('module', 'user'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+  $items['user/%user/balance-history'] = array(
+    'title' => 'Balance History',
+    'page callback' => 'mlm_rep_balance_history',
+    'page arguments' => array(1),
+    'access arguments' => array('mlm_rep_access_fields'),
+    'type' => MENU_LOCAL_TASK,
+  );
+  return $items;
+  
+//  $items['user/%user/rep-site'] = array(
+//    'title' => 'Representative Settings',
+//    'page callback' => 'drupal_get_form',
+//    'page arguments' => array('user_profile_form', 1),
+//    'access arguments' => array('mlm_rep_access_fields'),
+//    'file' => 'user.pages.inc',
+//    'file path' => drupal_get_path('module', 'user'),
+//    'type' => MENU_LOCAL_TASK,
+//  );
+//  return $items;
+}
+
+/**
+ * Impliments hook_init()
+ */
+function mlm_rep_init() {
+  $store_id = mlm_rep_get_store_id();
+  //echo time("-30 days");
+}
+
+function mlm_rep_cron() {
+  $netdelay = (int)variable_get('mlm_net_delay', 30) * 2;
+  $time = time("-" . $netdelay . " days");
+  
+  $results = db_query('SELECT uid, SUM(difference) AS total
+                      FROM {mlm_balance_history} 
+                      WHERE timestamp < :time
+                      AND processed = 0
+                      GROUP BY uid', array(':time' => $time));
+  
+  while ( $row = $results->fetchAssoc() ) {
+    $account_id = $row['uid'];
+    $account = user_load($account_id);
+    $total = $row['total'];
+    if ( !empty($account->uid) ) {
+      $account_wrapper = entity_metadata_wrapper('user', $account);
+      $pending_balance = $account_wrapper->mlm_rep_balance->value();
+      $payable_balance = $account_wrapper->mlm_rep_payable_balance->value();
+      
+      $payable_balance['amount'] += $total;
+      
+      $account_wrapper->mlm_rep_balance = $pending_balance;
+      $account_wrapper->mlm_rep_payable_balance = $payable_balance;
+      $account_wrapper->save();
+    }
+    
+    // Set the Row as processed
+    db_query('UPDATE {mlm_balance_history}
+              SET processed = 1
+              WHERE timestamp < :time
+              AND processed = 0', array(':time' => $time));
+    
+    
+  }
+  
+  return 'test';
+}
+
+
+
+function mlm_rep_get_prefix($store_id = NULL) {
+  if ( !isset($store_id) ) $store_id = mlm_rep_get_store_id();
+  $account = user_load($store_id);
+  
+  $account_wrapper = entity_metadata_wrapper('user', $account);
+  $account_prefix = $account_wrapper->mlm_rep_slug->value();
+  if ( empty($account_prefix) ) return 'store';
+  return $account_prefix;
+}
+
+function mlm_redirect_prefix($prefix) {
+  $request = $_SERVER['REQUEST_URI'];
+  $components = explode("/", $request);
+  $components[1] = $prefix;
+  $path = implode('/', $components);
+  drupal_goto($path, array('external' => true));
+  die();
+}
+
+function mlm_rep_get_store_id() {
+  global $user;
+  $request = $_SERVER['REQUEST_URI'];
+  $components = explode("/", $request);
+  $prefix = $components[1];
+  $store_id = mlm_rep_get_prefix_representative($prefix);
+  if ( empty($prefix) ) $prefix = 'store';
+  
+  // TO DO -- Verify the User's database based store id.
+  if ( !empty($user->uid) ) {
+    $representative_role = user_role_load_by_name('Representative');
+    if ( user_has_role($representative_role->rid, $user) ) {
+      $rep_prefix = mlm_rep_get_prefix($user->uid);
+      $valid_prefix = mlm_rep_verify_store_prefix($user->uid, $rep_prefix);
+      if ( $rep_prefix != $prefix && $valid_prefix ) {
+        mlm_redirect_prefix($rep_prefix);
+      } elseif ( !$valid_prefix && $prefix != 'store' ) {
+        mlm_redirect_prefix('store');  
+      }
+      return 0;
+    }
+  }
+  
+  // Default Prefix, in this case look for cookie.
+  if ( empty($prefix) ||  $prefix == 'store' ) {
+    // Load Prefix and Store ID from the cookie
+    if ( !empty($_COOKIE['Drupal_visitor_store_id']) ) {
+      $store_id = $_COOKIE['Drupal_visitor_store_id'];
+      $account_prefix = mlm_rep_get_prefix($store_id);
+      $valid_prefix = mlm_rep_verify_store_prefix($store_id, $account_prefix);
+      if ( !empty($account_prefix) && $valid_prefix ) {
+        mlm_redirect_prefix($account_prefix);
+      } else {
+        mlm_rep_set_prefix('store', 0);
+        return 0;
+      }
+    } else {
+      // The user is accessing the core store. Just return 0.
+      $prefix = 'store';
+      return 0;
+    }
+  }
+  
+  $store_id = mlm_rep_get_prefix_representative($prefix);
+  if ( !empty($store_id) ) {
+    mlm_rep_set_prefix($prefix, $store_id);
+    return $store_id;
+  } else {
+    return 0;
+  }
+  
+  
+  
+  
+  // Attempt to load the existing cookie. 
+//  if ( empty($_COOKIE['Drupal_visitor_store_id']) ) {
+//    // Verify the existance of this subdomain.
+//    $representative_id = mlm_rep_get_prefix_representative($prefix);
+//    if ( !empty($representative_id) ) {
+//      mlm_rep_set_prefix($prefix, $representative_id);
+//      $store_id = $representative_id;
+//    } else {
+//      $store_id = 0;
+//    }
+//  } else {
+//    /**
+//     *  Force Representatives to Orverride their own cookie.
+//     *  // Remind Representatives to login to get their own discounts.--> 
+//     *  Add a box on the dashboard containing your url link.
+//     * ---> 
+//     */
+//    
+//    $representative_id = mlm_rep_get_prefix_representative($prefix);
+//    $store_id = $_COOKIE['Drupal_visitor_store_id'];
+//    if ( !empty($representative_id) && $representative_id != $store_id ) $store_id = $representative_id;
+//    $account_prefix = mlm_rep_get_prefix($store_id);
+//    if ( !empty($account_prefix) && $account_prefix != $prefix ) {
+//      //unset($components[0]);
+//      $components[1] = $account_prefix;
+//      $path = implode('/', $components);
+//      
+//      //die($path);
+//      drupal_goto($path, array('external' => true));
+//      return;
+//    }
+//    //$store_prefix = $_COOKIE['Drupal_visitor_store_prefix'];
+//  }
+//  
+//  return $store_id;
+}
+
+// Note, should I prevent the user from changing the number and therefore setting the store id themselves?
+function mlm_rep_set_prefix($prefix, $representative_id) {
+  global $user;
+  // TO DO: Check the database user field to determine if the user has a permantely saved prefix.
+  $cookie = array(
+    'store_id' => $representative_id,
+    'store_prefix' => $prefix,
+  );
+  user_cookie_save($cookie);
+}
+
+
+function mlm_rep_verify_store_prefix($store_id, $prefix) {
+  $query = new EntityFieldQuery;
+  $result = $query
+    ->entityCondition('entity_type', 'user')
+    ->propertyCondition('uid', $store_id)
+    ->fieldCondition('mlm_rep_slug', 'value', $prefix, '=')
+    ->fieldCondition('mlm_rep_approve_slug', 'value', 1, '=')
+    ->execute();
+  return !empty($result['user']);
+}
+
+function mlm_rep_get_prefix_representative($prefix) {
+  $representative_role = user_role_load_by_name('Representative');
+  $query = new EntityFieldQuery;
+  $result = $query
+      ->entityCondition('entity_type', 'user')
+      ->fieldCondition('mlm_rep_slug', 'value', $prefix, '=')
+      ->execute();
+  if ( !empty($result['user']) ) {
+    $account_ids = array_keys($result['user']);
+    $account_id = $account_ids[0];
+    $account = user_load($account_id);
+    if ( user_has_role($representative_role->rid, $account) ) {
+      return $account->uid;
+    } else {
+      return false;
+    }
+  } else {
+    return false;
+  }
+}
+
+function mlm_rep_profile_callback() {
+//  if ( arg(0) == 'user' ) {
+//    $output = '';
+//    $account = user_load(arg(1));
+//    if ( !empty($account) ) {
+//      $account_wrapper = entity_metadata_wrapper('user', $account);
+//      $name = $account_wrapper->mlm_rep_info->value();
+//      
+//      if ( !empty($name['first_name']) ) {
+//        $output .= $name['first_name'] . '\'s ';
+//      }
+//    }
+//  }
+    
+  $output = 'Representative Dashboard';
+  return $output;
+}
+
+function mlm_rep_menu_alter(&$items) {
+  //$items['user']['title'] = 'Representative Dashboard';
+  $items['user']['title callback'] = 'mlm_rep_profile_callback';
+  $items['user/%user']['title callback'] = 'mlm_rep_profile_callback';
+  $items['user/%user/edit']['title'] = 'Account Settings';
+  $items['user/%user/view']['title'] = 'Account Overview';
+  //$items['user/%user/view']['page callback'] = 'mlm_rep_user_profile_view';
+  //$items['user/%user/view']['page callback'] = 'mlm_rep_user_profile_view';
+  $items['user/%user']['page callback'] = 'mlm_rep_user_profile_view';
+}
+
+function mlm_rep_user_profile_view($account) {
+  $representative_role = user_role_load_by_name('Representative');
+  
+  // Do not process Upline Values for a user's own orders.
+  if ( user_has_role($representative_role->rid, $account) ) {
+    $account_page = theme('representative', array(
+      'account' => $account, 
+    ));
+    return render($account_page);
+  }
+ 
+  return user_view($account);
+}
+
+function mlm_rep_user_profile_page() {
+  global $user;
+  return mlm_rep_user_profile_view($user);
+}
+
+function mlm_rep_commerce_order_presave($order) {
+
+  $order_wrapper = entity_metadata_wrapper('commerce_order', $order);
+  $order_representitive = $order_wrapper->field_order_representative->value();
+  if ( !empty($order_representitive) ) {
+    //$original = $order->original;
+    //$original_downline = mlm_rep_calculate_downline_total($original);
+    
+    //if ( $current_downline != $original_downline ) {
+      // This order was changed, we need to recalculate and redistribute the downline
+      
+      //$balance_change = $current_downline - $original_downline;
+      $downline = mlm_rep_calculate_downline_total($order);
+      $account = user_load($order->uid);
+      mlm_rep_reconcile_downline($account, $order, $downline);
+    //}
+  }
+}
+
+//
+//function mlm_rep_erase_downline($account) {
+//  db_delete('mlm_balance_history')
+//    ->condition('type', 'order')
+//    ->condition('')
+//}
+
+
+function mlm_rep_reconcile_downline($account, $order, $upline_balance, $depth = 0, $account_ids = array()) {
+  if ( $depth >= variable_get('mlm_downline_max_depth', 3) ) return;
+  if ( $depth == 0 ) {
+    $order_wrapper = entity_metadata_wrapper('commerce_order', $order);
+    $user_representative = $order_wrapper->field_order_representative->value();
+  } else {
+    $account_wrapper = entity_metadata_wrapper('user', $account);
+    $user_representative = $account_wrapper->mlm_rep_parent->value();
+  }
+  if ( !empty($user_representative->uid) && !array_key_exists($user_representative->uid, $account_ids)) {
+    $depth += 1;
+    $representative_rate = variable_get('mlm_downline_value_' . $depth, '0');
+    $representative_rate /= 100;
+    $change = floor($upline_balance * $representative_rate);
+    
+    
+    // Look up original credit for this order.
+    $query = db_select('mlm_balance_history', 'h')
+        ->condition('type', 'order')
+        ->condition('reference_id', $order->order_id)
+        ->condition('uid', $user_representative->uid);
+    $query->addExpression("SUM(difference)", 'total');
+    $original_adjustment = $query->execute()->fetchField();
+    dpm($original_adjustment);
+    
+    if ( isset($original_adjustment) && !is_null($original_adjustment) && $change != $original_adjustment ) {
+      $total_adjustment = $change - $original_adjustment;
+      $description = 'Adjustment to Order #' . $order->order_id . '.';
+      $process = $total_adjustment < 0;
+      mlm_rep_update_balance($user_representative, $total_adjustment, 'order', $order->order_id, $description, $depth, $representative_rate, $process);
+    }
+    //$description = 'Adjustment to Order #' . $order->order_id . '.';
+    //mlm_rep_update_balance($user_representative, $change, 'order', $order->order_id, $description, $depth, $representative_rate, 1);
+    mlm_rep_reconcile_downline($user_representative, $order, $upline_balance, $depth, $account_ids);
+  }
+}
+
+
+
+
+
+/**
+ * Impliments hook_form_alter()
+ * Used to restrict MLM Rep specific fields on the user profile form.
+ */
+function mlm_rep_form_user_profile_form_alter(&$form, &$form_state, $form_id) {
+  global $base_url;
+  
+  // Add a Form Submission Hook
+  //$form['#submit'][] = 'mlm_rep_user_profile_form_submit';
+  
+  // Create the Tabs System
+  $form['tabs'] = array(
+   '#type' => 'vertical_tabs',
+  ); 
+  
+  // Move the Account Fieldset into a Tab Groupping
+  $form['account']['#type'] = 'fieldset';
+  $form['account']['#group'] = 'tabs';
+  $form['account']['#title'] = 'Email & Password';
+  $form['account']['#weight'] = 55;
+  
+  // Pull in the Customer Profile Editing Form.
+//  $form['shipping_settings'] = array(
+//    '#type' => 'fieldset',
+//    '#group' => 'tabs',
+//    '#title' => 'Shipping Addresses',
+//  );
+  
+  // hook user login --> redirect to dashboard.
+
+  $form['mlm_rep_info']['und'][0]['organisation_block']['organisation_name']['#title'] = 'Full Name';
+  
+  /* Update this form if the user has representative access */
+  if ( !user_access('mlm_rep_access_fields') ) {
+    $form['mlm_rep_info']['#access'] = false;
+    $form['mlm_rep_paypal']['#access'] = false;
+    $form['mlm_rep_slug']['#access'] = false;
+    $form['mlm_rep_website']['#access'] = false; 
+    $form['mlm_rep_payment_method']['#access'] = false;
+    $form['picture']['#access'] = false;
+  } else {
+    $form['picture']['#description'] = 'Your profile picture will be displayed in the top right corner of your website.';
+    $form['rep_info'] = array(
+      '#type' => 'fieldset',
+      '#group' => 'tabs',
+      '#title' => 'Representative Settings',
+      '#tree' => false,
+      '#weight' => 0,
+    );
+    $form['rep_info']['picture'] = $form['picture']; $form['rep_info']['picture']['#weight'] = 0; unset($form['picture']);
+    $form['rep_info']['mlm_rep_info'] = $form['mlm_rep_info']; $form['rep_info']['mlm_rep_info']['#weight'] = 5; unset($form['mlm_rep_info']);
+    $form['rep_info']['mlm_rep_info']['und'][0]['#description'] = 'Enter your business details here. Your address will be used to process payments and tax information and your name and phone number will be displayed on your website.';
+    // will review your information and activate your website.
+    // notify by email.
+    
+    
+    // --- PAYMENTS FIELDSET --- //
+    $form['rep_info']['payment_info'] = array(
+      '#type' => 'fieldset',
+      '#title' => 'Payment Settings',
+      '#tree' => false,
+      '#weight' => 10,
+    );
+    
+        // Paypal Email Address
+        $form['rep_info']['payment_info']['mlm_rep_paypal'] = $form['mlm_rep_paypal']; unset($form['mlm_rep_paypal']);
+
+        // Payment Method Field
+        $form['rep_info']['payment_info']['mlm_rep_payment_method'] = $form['mlm_rep_payment_method']; unset($form['mlm_rep_payment_method']);
+        if ( empty($form['rep_info']['payment_info']['mlm_rep_payment_method']['und']['#default_value']) ) $form['rep_info']['payment_info']['mlm_rep_payment_method']['und']['#default_value'] = 'check';
+
+    
+    
+    
+    // --- WEBSITE SETTINGS FIELDSET --- //
+    $form['rep_info']['web_info'] = array(
+      '#type' => 'fieldset',
+      '#title' => 'Website Settings',
+      '#tree' => false,
+      '#weight' => 15,
+    );
+        // Representative Website
+        $form['rep_info']['web_info']['mlm_rep_website'] = $form['mlm_rep_website']; unset($form['mlm_rep_website']);
+        
+        // Representative Slug
+        $form['mlm_rep_slug']['und'][0]['value']['#title'] = 'Your Representitive Website URL';
+        $form['mlm_rep_slug']['und'][0]['value']['#description'] = 'Create a url for your website. This is the url that your customers will use to access your website. This url must be approved by administration before this url will work. Only enter lowercase letters, underscore, and dashes. Once your url is approved, you cannot change it, so choose wisely!';
+        $form['mlm_rep_slug']['und'][0]['value']['#field_prefix'] = $_SERVER['HTTP_HOST'] . '/';
+        $form['mlm_rep_slug']['und'][0]['value']['#field_suffix'] = '/';
+        if ( !empty($form['mlm_rep_slug']['und'][0]['value']['#default_value']) && !user_access('mlm_rep_manage_fields') ) {
+          $form['mlm_rep_slug']['und'][0]['value']['#disabled'] = true;
+        }
+        $form['rep_info']['web_info']['mlm_rep_slug'] = $form['mlm_rep_slug']; unset($form['mlm_rep_slug']);
+  }
+  
+  /* Update this form if the user has representative administration access */
+  if ( !user_access('mlm_rep_manage_fields') ) {
+    $form['mlm_rep_payable_balance']['#access'] = false;
+    $form['mlm_rep_balance']['#access'] = false;
+    $form['mlm_rep_parent']['#access'] = false;
+    $form['mlm_rep_approve_slug']['#access'] = false;
+  } else {
+    $form['mlm_rep_payable_balance']['#access'] = false;
+    // --- ADMINISTER REPRESENTITIVE TAB--- //
+    $form['rep_admin'] = array(
+      '#type' => 'fieldset',
+      '#group' => 'tabs',
+      '#title' => 'Administer Representative',
+      '#tree' => false,
+      '#description' => 'These settings only appear to Administrators and Moderators. Use great caution when modifying these values.',
+    );
+
+        // Payable Balance
+        if ( empty($form['mlm_rep_payable_balance']['und'][0]['amount']['#default_value']) ) $form['mlm_rep_payable_balance']['und'][0]['amount']['#default_value'] = "0.00";
+        $form['rep_admin']['mlm_rep_payable_balance'] = $form['mlm_rep_payable_balance']; unset($form['mlm_rep_payable_balance']);
+
+        // Current Balance
+        if ( empty($form['mlm_rep_balance']['und'][0]['amount']['#default_value']) ) $form['mlm_rep_balance']['und'][0]['amount']['#default_value'] = "0.00";
+        $form['rep_admin']['mlm_rep_balance'] = $form['mlm_rep_balance']; unset($form['mlm_rep_balance']);
+        
+        $form['rep_admin']['mlm_balance_reason'] = array(
+          '#title' => 'Reason for Account Balance adjustment',
+          '#type' => 'textfield',
+          '#default_value' => 'Administrative adjustment.',
+        );
+
+        // Representative Parent
+        $form['rep_admin']['mlm_rep_parent'] = $form['mlm_rep_parent']; unset($form['mlm_rep_parent']);
+        
+        // Representative URL Website Approval
+        $current_url = '';
+        if ( !empty($form['rep_info']['web_info']['mlm_rep_slug']['und'][0]['value']['#default_value']) ) {
+          $current_url = $_SERVER['HTTP_HOST'] . '/' . '<strong>' . 
+              $form['rep_info']['web_info']['mlm_rep_slug']['und'][0]['value']['#default_value'] . '</strong>/';
+        }
+        $form['mlm_rep_approve_slug']['#weight'] = 11;
+        $form['mlm_rep_approve_slug']['und']['#suffix'] = '<strong>Requested Representative Website URL: </strong>' . $current_url;
+        $form['rep_admin']['mlm_rep_approve_slug'] = $form['mlm_rep_approve_slug']; unset($form['mlm_rep_approve_slug']);
+  }
+}
+
+function mlm_rep_user_presave(&$edit, $account, $category) {
+  if ( user_access('mlm_rep_manage_fields') ) {
+    $slug = $edit['mlm_rep_slug']['und'][0]['value'];
+    $approve_slug_submitted = $edit['mlm_rep_approve_slug']['und'][0]['value'];
+    $account_wrapper = entity_metadata_wrapper('user', $account);
+    $approve_slug_original = $account_wrapper->mlm_rep_approve_slug->value();
+    $account_slug = $account_wrapper->mlm_rep_slug->value();
+
+    if ( $approve_slug_original != $approve_slug_submitted || $account_slug != $slug ) {
+      // This value was changed! Let's process the user's slug.
+      if ( $approve_slug_submitted == 1 ) {
+        // Disable the existing Slug
+        mlm_rep_disable_prefix($account_slug);
+
+        // Enable the new slug
+        mlm_rep_enable_prefix($slug);
+        
+        // Send Notification Email
+        drupal_mail('mlm_rep', 'website_approved', $account->mail, user_preferred_language($account), array('account' => $account));
+      }
+      if ( $approve_slug_submitted == 0 ) mlm_rep_disable_prefix($slug);
+    }
+    
+    $balance = $account_wrapper->mlm_rep_balance->value();
+    $balance = $balance['amount'];
+    $balance_new = $edit['mlm_rep_balance']['und'][0]['amount'];
+    
+    if ( isset($balance) && isset($balance_new) && $balance_new != $balance ) {
+      $description = $edit['mlm_balance_reason'];
+      $amount = $balance_new - $balance;
+      db_insert('mlm_balance_history')
+        ->fields(array(
+          'uid' => $account->uid,
+          'timestamp' => time(),
+          'balance' => $balance_new,
+          'difference' => $amount,
+          'type' => 'admin',
+          'reference_id' => 0,
+          'description' => $description,
+          'tier' => 0,
+          'rate' => 0,
+          'processed' => 1,
+        ))
+        ->execute();
+      
+      //mlm_rep_update_balance($account, $amount, 'admin', 0, $reason, 0, 0, 1);
+    }
+  }
+}
+
+function mlm_rep_mail($key, &$message, $params) {
+  global $base_path;
+  $data['user'] = $params['account'];
+  $options['language'] = $message['language'];
+  switch($key) {
+    case 'website_approved':
+      $message['subject'] = t('Jewelry Candles Account Approval');
+      $body = variable_get('mlm_rep_website_approval_email', 'Your representative website has been approved. You can view your website at this url: [url].');
+      
+      $link = '#';
+      $body = str_replace('[url]', $link, $body);
+      $message['body'][] = $body;
+      break;
+    case 'welcome_email':
+      $message['subject'] = t('Jewelry Candles Welcome Package');
+      $message['body'][] = variable_get('mlm_rep_welcome_package_email', 'Welcome to Jewelry Candles!');
+      break;
+    case 'rep_signup':
+      $message['subject'] = t('Jewelry Candles: Representative Signup');
+      $message['body'][] = variable_get('mlm_rep_notification', 'A new representative has signed up!');
+
+    //case 'representative_signup'
+  }
+}
+
+
+function mlm_rep_user_profile_form_submit($form, &$form_state) {
+  // Check for administrative Changes
+  if ( user_access('mlm_rep_manage_fields') ) {
+    $account = $form_state['user'];
+    $slug = $form_state['values']['mlm_rep_slug']['und'][0]['value'];
+    $approve_slug = $form_state['values']['mlm_rep_approve_slug']['und'][0]['value'];
+  }
+}
+
+function mlm_rep_validate_prefix($prefix) {
+  $clean = preg_replace('/[^A-Za-z_]/', '', $prefix);
+	$banned = array(
+		'store',
+		'Store',
+		'stystem',
+		'sites',
+		'config',
+		'includes',
+		'misc',
+		'libraries',
+		'drupal',
+		'wordpress',
+	);
+	//if ( in_array($clean, $banned) ) return FALSE;
+	
+	// Check if this already exists!
+	$server_path = preg_replace('/\/store$/', '', DRUPAL_ROOT);
+	$folder_path = $server_path . '/' . $prefix;
+	if ( file_exists($folder_path) ) {
+		return FALSE;
+	}
+	
+	if ( $clean == $prefix ) {
+		return TRUE;
+	} else {
+		return FALSE;
+	}
+}
+
+function mlm_rep_enable_prefix($prefix) {
+  $server_path = preg_replace('/\/store$/', '', DRUPAL_ROOT);
+  
+  // INCREDIBLY DANGEROUS COMMAND!!!! WARNING WARNING WARNING!!!!
+  if ( mlm_rep_validate_prefix($prefix) ) {
+    $command = sprintf('ln -s %s %s/%s', DRUPAL_ROOT, $server_path, $prefix);
+    $results = shell_exec($command);  
+  }
+}
+
+function mlm_rep_disable_prefix($prefix) {
+  $server_path = preg_replace('/\/store$/', '', DRUPAL_ROOT);
+  $command = sprintf('rm -f %s/%s', $server_path, $prefix);
+  shell_exec($command); 
+}
+
+function mlm_rep_mlm_variable() {
+  $variables = array(
+    'mlm_net_delay' => array(
+      '#target' => 'general',
+      '#title' => 'Payment Delay Length',
+      '#type' => 'textfield',
+      '#description' => 'Enter the number of days required to roll pending balance into payable balance.',
+      '#default_value' => 30,
+      '#element_validate' => array('element_validate_integer_positive'), 
+    ),
+    'mlm_rep_welcome_message_alert' => array(
+      '#target' => 'general',
+      '#title' => 'Representative Welcome Message',
+      '#type' => 'textarea',
+      '#description' => 'The message displayed when a customer purchases a representative package.',
+      '#default_value' => 'Congratulations on becoming a new representative of Jewelry Candles! '
+      . 'Please check your email for a welcome package and don\'t forget to set up your account.',
+    ),
+    
+    'mlm_rep_website_approval_email' => array(
+      '#target' => 'email',
+      '#title' => 'Representative Welcome Email',
+      '#type' => 'textarea',
+      '#description' => 'This email is sent when you approve a representative\'s website url. <strong>Variables: </strong> [url] - generates a link to the rep\'s website.',
+      '#default_value' => 'Your representative website has been approved. You can view your website at this url: [url].',
+    ),
+    
+     'mlm_rep_welcome_package_email' => array(
+      '#target' => 'email',
+      '#title' => 'Representative Welcome Email',
+      '#type' => 'textarea',
+      '#description' => 'This email is sent to a new representative once he or she completes checkout.',
+      '#default_value' => 'Welcome to Jewelry Candles!',
+    ),
+    
+    'mlm_rep_notification' => array(
+      '#target' => 'email',
+      '#title' => 'Representative Notification Email',
+      '#type' => 'textarea',
+      '#description' => 'This email is sent to the site admin when a representative is signed up.',
+      '#default_value' => 'A new representative has signed up!',
+    ),
+  );
+  
+  return $variables;
+}
+
+
+
+
+
+/**
+ * Launches the Representitive Welcome Alerts and notifications for new representatives.
+ */
+function mlm_rep_welcome_package($user_id) {
+  $user = user_load($user_id);
+  $account_link = l('[Account Setup]', 'user/' . $user->uid . '/edit');
+  $welcome_alert = variable_get('mlm_rep_welcome_message_alert', 'Congratulations on becoming a new representative of Jewelry Candles! '
+      . 'Please check your email for a welcome package and don\'t forget to set up your account.');
+  $welcome_alert .= ' ' . $account_link;
+  drupal_set_message($welcome_alert, 'status');
+  
+  drupal_mail('mlm_rep', 'welcome_email', $user->mail, user_preferred_language($user), array('account' => $user));
+}
+
+
+/** 
+ * impliments hook_commerce_product_type_info()
+ */
+function mlm_rep_commerce_product_type_info() {
+  return array(
+    'representative_package' => array(
+      'type' => 'representative_package',
+      'name' => t('Rep Package'),
+      'description' => t('Contains products that allow a user to becoming a Representative upon purchase.'),
+      'help' => '',
+    ),
+  );
+}
+
+/**
+ * impliments hook_enable()
+ */
+function mlm_rep_enable() {
+  // Configure the Representative Package Product Type
+  commerce_product_configure_product_type('representative_package');
+}
+
+
+
+function mlm_rep_calculate_downline_total($order) {
+  $upline_balance = 0;
+  $order_wrapper = entity_metadata_wrapper('commerce_order', $order);
+  $line_items = $order_wrapper->commerce_line_items->value();
+   foreach ( $line_items as $key => $line_item ) {
+    
+    if ( $line_item->type == 'product' ) {
+      $line_item_wrapper = entity_metadata_wrapper('commerce_line_item', $line_item);
+      $product = $line_item_wrapper->commerce_product->value();
+      $total = $line_item_wrapper->commerce_total->value();
+      $upline_balance += $total['amount'];
+    }
+//    elseif ( $line_item->type == 'coupon' ) {
+//      dpm('coupon!');
+//      dpm($line_item);
+//    } else continue; 
+  }
+  
+  return $upline_balance;
+}
+
+
+/**
+ * impliments hook_commerce_checkout_complete()
+ */
+function mlm_rep_commerce_checkout_complete($order) {
+  // Get the Order's Account.
+  $account = user_load($order->uid);
+  $representative_role = user_role_load_by_name('Representative');
+  
+  // Do not process Upline Values for a user's own orders.
+  if ( user_has_role($representative_role->rid, $account) ) {
+    return;
+  }
+  
+  // Order Wrapper
+  $order_wrapper = entity_metadata_wrapper('commerce_order', $order);
+  
+  // Set the Order's Representative Here
+  if ( empty($order_wrapper->field_order_representative->value()) ) {
+    $store_id = mlm_rep_get_store_id();
+    $order_wrapper->field_order_representative->set($store_id);
+    $order_wrapper->save();
+  }
+  
+  // Initial Upline Balance
+  $upline_balance = 0;
+  $discount_total = 0;
+  
+  // Get Line Items
+  $line_items = $order_wrapper->commerce_line_items->value();
+  
+  // Loop through each line item
+  foreach ( $line_items as $key => $line_item ) {
+    // Line Item Entity Wrapper
+    $line_item_wrapper = entity_metadata_wrapper('commerce_line_item', $line_item);
+
+    // Don't process non line-item types.
+    if ( $line_item->type == 'product' ) {
+    
+      // Get the Product
+      $product = $line_item_wrapper->commerce_product->value();
+
+      // Upgrade the account if this is a representatitive package.
+      if ( $product->type == 'representative_package' ) {
+        mlm_rep_upgrade_account($order->uid, $product, $store_id);
+      } else {
+
+        // Get the Total Values
+        $total = $line_item_wrapper->commerce_total->value();
+
+        // Determine the Amount of the Discount applied to this element.
+        $discount_total += mlm_rep_extract_discount($total);
+        
+        // Tally the Product Line Total
+        $upline_balance += $total['amount'];
+      }
+    } elseif ( $line_item->type == 'commerce_discount' ) {
+      // Get the Total Values
+      $discount = $line_item_wrapper->commerce_total->value();
+      $discount_total -= $discount['amount'];
+    }
+  }
+  
+  // Apply the new Discount Total to the Balance
+  $upline_balance -= $discount_total;
+  
+  if ( $upline_balance > 0 ) {
+    mlm_rep_process_downline($account, $order, $upline_balance, 0);
+  }
+  
+}
+
+
+function mlm_rep_extract_discount($amount) {
+  // Initial Base Price
+  $discount = 0;
+  
+  // Process each Component
+  $components = $amount['data']['components'];
+  foreach ( $components as $component ) {
+    if ( $component['included'] && substr($component['name'], 0, 8) == 'discount' ) {
+      $discount += $component['price']['amount'];
+    }
+  }
+  
+  // Return the final calculated price
+  return $discount;
+}
+
+
+
+function mlm_rep_process_downline($account, $order, $upline_balance, $depth = 0, $account_ids = array()) {
+  if ( $depth > variable_get('mlm_downline_max_depth', 3) ) return;
+  
+  //$user_representative = $account_wrapper->mlm_rep_parent->value();
+  if ( $depth == 0 ) {
+    $order_wrapper = entity_metadata_wrapper('commerce_order', $order);
+    $user_representative = $order_wrapper->field_order_representative->value();
+  } else {
+    $account_wrapper = entity_metadata_wrapper('user', $account);
+    $user_representative = $account_wrapper->mlm_rep_parent->value();
+  }
+  
+  //$user_representative = user_load($representative_id);
+  
+  if ( !empty($user_representative->uid) && !array_key_exists($user_representative->uid, $account_ids)) {
+    $depth += 1;
+    $representative_rate = variable_get('mlm_downline_value_' . $depth, '0');
+    $representative_rate /= 100;
+    $change = floor($upline_balance * $representative_rate);
+    
+    $description = 'Earnings from Order #' . $order->order_id . '.';
+    mlm_rep_update_balance($user_representative, $change, 'order', $order->order_id, $description, $depth, $representative_rate);
+    mlm_rep_process_downline($user_representative, $order, $upline_balance, $depth, $account_ids);
+  }
+}
+
+
+function mlm_rep_update_balance($account, $change, $type = NULL, $reference_id = 0, $description = '', $tier = 0, $rate = 0, $processed = 0) {
+  
+  $account_wrapper = entity_metadata_wrapper('user', $account);
+  $current_balance = $account_wrapper->mlm_rep_balance->value();
+  if ( empty($current_balance) ) {
+    $current_balance = array(
+      'amount' => 0,
+      'currency_code' => 'USD',
+    );
+  }
+  $current_balance['amount'] += $change;
+  $account_wrapper->mlm_rep_balance->set($current_balance);
+  $account_wrapper->save();
+  
+  // Fix bad Processed Commands
+  if ( !is_int($processed) ) {
+    $message = implode(', ', array($change, $type, $reference_id, $description, $tier, $rate, $processed));
+    dpm('Bad Processed Command: ' . $message);
+    $processed = 0;
+  }
+  
+  db_insert('mlm_balance_history')
+    ->fields(array(
+      'uid' => $account->uid,
+      'timestamp' => time(),
+      'processed' => $processed,
+      'balance' => $current_balance['amount'],
+      'difference' => $change,
+      'type' => $type,
+      'reference_id' => $reference_id,
+      'description' => $description,
+      'tier' => $tier,
+      'rate' => $rate,
+    ))
+    ->execute();
+}
+
+
+/**
+ * Upgrades a user if they have purchased a representative package
+ * @param type $order Commerce_order 
+ * @param type $product Commerce_product that was purchased
+ */
+function mlm_rep_upgrade_account($user_id, $product, $rep_id = 0) {
+  $account = user_load($user_id);
+  $account_wrapper = entity_metadata_wrapper('user', $account);
+  $account_wrapper->mlm_rep_parent = $rep_id;
+  $role = user_role_load_by_name("Representative");
+  user_multiple_role_edit(array($user_id), 'add_role', $role->rid);
+  mlm_rep_update_balance($account, 0, 'system', 0, 'Initial Balance', 0, 0);
+  mlm_rep_welcome_package($user_id);
+  // Update cookie!
+  mlm_rep_set_prefix('store', 0);
+}
+function mlm_rep_preprocess_html(&$vars) {
+  $store_id = mlm_rep_get_store_id();
+  $sitename = mlm_rep_get_sitename();
+  $vars['head_title_array']['name'] = $sitename;
+    
+  if ( !empty($vars['head_title_array']['title']) ) {
+    $vars['head_title'] = $vars['head_title_array']['title'] . ' | ' . $vars['head_title_array']['name'];
+  } else {
+    $vars['head_title'] = $vars['head_title_array']['name'];
+  }
+}
+function mlm_rep_get_sitename($store_id = NULL) {
+  if ( !isset($store_id) ) $store_id = mlm_rep_get_store_id();
+  $account = user_load($store_id);
+  $representative_role = user_role_load_by_name('Representative');
+  
+  // If user is a rep, we should show their own site name.
+  if ( !empty($account->uid) && user_has_role($representative_role->rid, $account) ) {
+    $account_wrapper = entity_metadata_wrapper('user', $account);
+    $website_name = $account_wrapper->mlm_rep_website->value();
+    if ( !empty($website_name) ) {
+      return $website_name;
+    }
+  } 
+
+  return variable_get('site_name');
+}
+function mlm_rep_balance_chart($account, $id = 'balance-chart', $interval = 'day', $periods = 30, $class = array('well', 'info')) {
+  $balance_data = array();
+  $balance_data[] = array(array("type" => 'date', "label" => 'Date'), array("type" => "number", "label" => "Balance"));
+  if ( empty($start) ) $start = strtotime(sprintf("-%d %s", $periods, $interval));
+  if ( empty($end) ) $end = time();
+  
+ 
+  
+  $balance_history = db_select('mlm_balance_history', 'h')
+     ->fields('h', array('timestamp', 'balance', 'difference', 'type', 'reference_id'))
+     ->condition('h.uid', $account->uid)
+     ->condition('h.timestamp', $start, '>')
+     ->condition('h.timestamp', $end, '<')
+     ->execute();
+  while ( $balance_item = $balance_history->fetchObject() ) {
+    
+    $balance_data[] = array(
+      "Date(" . date("Y, ", $balance_item->timestamp) . (date("n", $balance_item->timestamp) - 1) . date(" , j", $balance_item->timestamp) . ")",
+     array('v' => $balance_item->balance / 100, 'f' => '$' . number_format($balance_item->balance / 100, 2)),
+    );
+  }
+  
+   // Add "RIGHT NOW" entry.
+  end($balance_data); 
+  $last_data_point = $balance_data[key($balance_data)];
+  $current_time = time();
+  $last_data_point[0] = "Date(" . date("Y, ", $current_time) . (date("n", $current_time) - 1) . date(" , j", $current_time) . ")";
+  $balance_data[] = $last_data_point;
+  
+  
+  $chart = theme('google_chart', array(
+    "html_id" => $id,
+    'data' => $balance_data,
+    'html_class' => array('well', 'info'),
+    'options' => array(
+       'haxis' => array('title' => ''),
+       'vAxis' => array('title' => ''),
+     ),
+  ));
+  return $chart;
+  
+  return 'cow';
+}
+function mlm_rep_balance_chart2($account, $id = 'balance-chart', $interval = 'day', $periods = 30, $class = array('well', 'info')) {
+  $balance_data = array();
+  $balance_data[] = array(array("type" => 'date', "label" => 'Date'), array("type" => "number", "label" => "Balance"));
+  
+  $balance_data = array();
+  $last_balance_value = 0;
+  if ( empty($start) ) $start = strtotime(sprintf("-%d %s", $periods, $interval));
+   if ( empty($end) ) $end = time();
+
+   // Build the Chart Data
+   for ( $i = 0; $i < $periods; $i++ ) {
+     $loopstamp = strtotime($i * -1 . ' ' . $interval);
+     $loopinterval = (int)date("mj", $loopstamp);
+     $loopdisplay = "Date(" . date("Y, ", $loopstamp) . (date("n", $loopstamp) - 1) . date(" , j", $loopstamp) . ")";
+     $balance_data[$loopinterval] = array($loopdisplay);
+   }
+
+   // Query the Database for Chart Information
+   $balance_history = db_select('mlm_balance_history', 'h')
+     ->fields('h', array('timestamp', 'balance', 'difference', 'type', 'reference_id'))
+     ->condition('h.uid', $account->uid)
+     ->condition('h.timestamp', $start, '>')
+     ->condition('h.timestamp', $end, '<')
+     ->execute();
+
+   // Process each Data Point's Entry
+   while ( $balance_item = $balance_history->fetchObject() ) {
+     $interval = (int)date("mj", $balance_item->timestamp);
+     $date_display = date("n/j", $balance_item->timestamp);
+     $last_balance_value = $balance_item->balance;
+     $balance_data[$interval][1] = (int)$balance_item->difference;
+
+   }
+
+   // Loop back and build interval sales data for empty entries.
+   foreach ( $balance_data as $interval => $value ) {
+     if ( isset($value[1]) ) {
+       $last_balance_value = $value[1];
+     } else {
+       $balance_data[$interval][1] = $last_balance_value;
+     }
+   }
+
+
+  $balance_data = array_values($balance_data);
+  $balance_data[] = array(array("type" => 'date', "label" => 'Date'), array("type" => "number", "label" => "Balance"));
+  $balance_data = array_reverse($balance_data);
+  $chart = theme('google_chart', array(
+     "html_id" => $id,
+     'data' => $balance_data,
+     'html_class' => array('well', 'info'),
+     'options' => array(
+        'haxis' => array('title' => ''),
+        'vAxis' => array('title' => ''),
+      ),
+   ));
+  return $chart;
+}
+function mlm_rep_preprocess_rep_header(&$variables) {
+  $request = $_SERVER['REQUEST_URI'];
+  $components = explode("/", $request);
+  $prefix = $components[1];
+   $store_id = mlm_rep_get_prefix_representative($prefix);
+  $account = user_load($store_id);
+  //$representative_role = user_role_load_by_name('Representative');
+  
+  // If user is a rep, we should show their own site name.
+  if ( !empty($account->uid) ) {
+    $account_wrapper = entity_metadata_wrapper('user', $account);
+    $website_name = $account_wrapper->mlm_rep_website->value();
+    $company_info = $account_wrapper->mlm_rep_info->value();
+    $phone_number = mlm_rep_format_phone($company_info['phone_number']);
+    if ( mlm_rep_can_contact($account) ) {
+      $variables['rep_link'] = l('Contact Me', 'user/' . $account->uid . '/contact', array('attributes' => array('class' => array('btn', 'btn-sm', 'btn-primary', 'btn-rep-contact'))));
+    }
+    $variables['rep_name'] = $company_info['organisation_name'];
+    $variables['rep_phone'] = $phone_number;
+    $variables['rep_image'] = theme('user_picture', array(
+      'account' => $account,
+      'style_name' => 'medium',
+    ));
+    //dpm($variables);
+  } 
+  
+ 
+}
+function mlm_rep_format_phone($phone) {
+  if ( empty($phone) ) return '';
+  //$country_code = strlen($phone) == 11 ? substr($phone, 0, 1) : '';
+  $country_code = substr($phone, 0, strlen($phone) - 10);
+  $phone_number = substr($phone, -10, 10);
+  $area_code = substr($phone_number, 0, 3);
+  $exchange = substr($phone_number, 3, 3);
+  $line_number = substr($phone_number, 6, 4);
+  $results = empty($country_code) ? '' : '+' . $country_code . ' ';
+  $results = '(' . $area_code . ') ' . $exchange . '-' . $line_number;
+  return $results;
+}
+function mlm_rep_draw_tier($account, $tier, $parent_id = 0) {
+  if ( $tier >= 4 ) return '';
+  
+  $output = '';
+  $query_1 = new EntityFieldQuery;
+  $targets = $query_1
+      ->entityCondition('entity_type', 'user')
+      ->fieldCondition('mlm_rep_parent', 'target_id', $account->uid)
+      ->execute();
+  $account_ids = !empty($targets['user']) ? array_keys($targets['user']) : array();
+  foreach ( $account_ids as $account_id ) {
+    
+    $rep = user_load($account_id);
+    $rep_wrapper = entity_metadata_wrapper('user', $rep);
+    $info = $rep_wrapper->mlm_rep_info->value();
+    
+    if ( $tier == 1 ) {
+      $parent_id = $account->uid;
+      $output .= '<div class="row downline tier-' . $tier . '">';
+      $output .= '<div class="col-xs-4 cell"><div class="name"><a data-toggle="collapse" data-target=".downline-child-of-' . $parent_id . '" class="btn btn-xs btn-success"><span class="glyphicon glyphicon-plus"></span></a> ';
+    } else {
+      $output .= '<div class="row collapse downline tier-' . $tier . ' downline-child-of-' . $parent_id . '">';
+      $output .= '<div class="col-xs-4 cell"><div class="name">';
+    }
+    
+    
+    $earnings_query = db_select('mlm_balance_history', 'h1')
+        ->condition('h1.type', 'order')
+        ->condition('h1.uid', $parent_id)
+        ->condition('h2.uid', $rep->uid)
+        ->condition('h2.type', 'order');
+    $earnings_query->addJoin('LEFT OUTER', 'mlm_balance_history', 'h2', 'h1.reference_id = h2.reference_id');
+    $earnings_query->addExpression('SUM(h1.difference)', 'earnings');
+    $earnings_query->addExpression('COUNT(h2.vid)', 'transactions');
+    $earnings_info = $earnings_query->execute()->fetchAssoc();
+    
+    
+
+    //dpm($earnings_info);
+    //dpm($account);
+    $fullname = !empty($info['organisation_name']) ? $info['organisation_name'] : $rep->name;
+    $output .= $fullname . '</div></div>';
+    $output .= sprintf('<div class="col-xs-2 cell city text-center">%s</div>', $info['locality']);
+    $output .= sprintf('<div class="col-xs-1 cell state text-center">%s</div>', $info['administrative_area']);
+    $output .= '<div class="col-xs-2 cell date text-center">' . date('n/d/Y', $rep->created) . '</div>';
+    $output .= sprintf('<div class="col-xs-1 cell orders text-center">%d</div>', $earnings_info['transactions']);
+    $output .= sprintf('<div class="col-xs-2 cell earnings text-right">$%.02f</div>', $earnings_info['earnings'] / 100);
+    
+    $output .= '</div>';
+    $output .= mlm_rep_draw_tier($rep, $tier + 1, $parent_id); 
+  }
+  
+  
+  
+  return $output;
+}
+function mlm_rep_views_query_alter(&$view, &$query) {
+  global $user;
+  if ( $view->name == 'commerce_representative_orders' ) {
+    $target = $view->args[0];
+    $query->where[] = array(
+      'conditions' => array(
+        array(
+          'field' => 'users_field_data_field_order_representative.uid',
+          'value' => $target,
+          'operator' => '=',
+        ),
+        array(
+          'field' => 'users_field_data_mlm_rep_parent.uid',
+          'value' => $target,
+          'operator' => '=',
+        ),
+        array(
+          'field' => 'users_field_data_mlm_rep_parent_1.uid',
+          'value' => $target,
+          'operator' => '=',
+        ),
+      ),
+      'type' => 'OR' ,// I believe this is an operator for multiple conditions
+    );
+  }
+}
+function mlm_rep_balance_history($account) {
+  echo $account->uid;
+  $table = array(
+    'header' => array(
+      'date' => array('data' => 'Date & Time', 'class' => array('text-center')),
+      'type' => array('data' => 'Source', 'class' => array('text-center')),
+      'description' => array('data' => 'Description', 'class' => array('text-center')),
+      'amount' => array('data' => 'Amount', 'class' => array('text-center')),
+      'total' => array('data' => 'Balance', 'class' => array('text-center')),
+    ),
+    'rows' => array(),
+    'attributes' => array(
+      'class' => array('table-bordered', 'striped'),
+    ),
+  );
+  
+  // Add "RIGHT NOW" entry.
+  
+  
+  $history = db_select('mlm_balance_history', 'h')
+      ->fields('h', array())
+      ->condition('uid', $account->uid)
+      ->orderBy('h.timestamp', 'DESC')
+      ->execute();
+  
+  while ( $page = $history->fetchObject() ) {
+    $date = date('n/d/Y - h:i A', $page->timestamp);
+    $amount = $page->difference;
+    if ( $amount > 0 ) {
+      $row_class = '';
+      $amount_prefix = '+ $';
+    } elseif ( $amount < 0 ) {
+      $row_class = $page->type == 'payment' ? 'success' : 'danger';
+      $amount_prefix = '- $';
+    } else {
+      $row_class = '';
+      $amount_prefix = '$';
+    }
+    
+    $amount = $amount_prefix . number_format(abs($page->difference) / 100, 2);
+    
+    $table['rows'][] = array( 'data' => array(
+        'date' => array('data' => $date, 'class' => array('text-center')),
+        'type' => array('data' => $page->type, 'class' => array('text-center')),
+        'description' => array('data' => $page->description, 'class' => array('text-left')),
+        'amount' => array('data' => $amount, 'class' => array('text-right')),
+        'total' => array('data' => '$' . number_format($page->balance / 100, 2), 'class' => array('text-right')),
+      ),
+      'class' => array($row_class),
+    );
+  }
+  
+  
+  $table = theme('table', $table);
+  return $table;
+}
+
+function mlm_rep_can_contact($account) {
+  global $user;
+  if ( !empty($user->uid) && !empty($account->uid) && $account->uid == $user->uid ) {
+    return FALSE;
+  }
+  
+  return !empty($account->data['contact']);
+}
+
+
+function mlm_rep_preprocess_user_picture(&$variables) {
+  $variables['user_picture'] = '';
+  $contact_link = TRUE;
+  if (variable_get('user_pictures', 0)) {
+    $account = $variables['account'];
+    
+    $contact_link = mlm_rep_can_contact($account);
+    
+    if (!empty($account->picture)) {
+      // @TODO: Ideally this function would only be passed file objects, but
+      // since there's a lot of legacy code that JOINs the {users} table to
+      // {node} or {comments} and passes the results into this function if we
+      // a numeric value in the picture field we'll assume it's a file id
+      // and load it for them. Once we've got user_load_multiple() and
+      // comment_load_multiple() functions the user module will be able to load
+      // the picture files in mass during the object's load process.
+      if (is_numeric($account->picture)) {
+        $account->picture = file_load($account->picture);
+      }
+      if (!empty($account->picture->uri)) {
+        $filepath = $account->picture->uri;
+      }
+    }
+    elseif (variable_get('user_picture_default', '')) {
+      $filepath = variable_get('user_picture_default', '');
+    }
+    if (isset($filepath)) {
+      $alt = t("@user's picture", array('@user' => format_username($account)));
+      // If the image does not have a valid Drupal scheme (for eg. HTTP),
+      // don't load image styles.
+      if (module_exists('image') && file_valid_uri($filepath) && $style = variable_get('user_picture_style', '')) {
+        $variables['user_picture'] = theme('image_style', array('style_name' => $style, 'path' => $filepath, 'alt' => $alt, 'title' => $alt));
+      }
+      else {
+        $variables['user_picture'] = theme('image', array('path' => $filepath, 'alt' => $alt, 'title' => $alt));
+      }
+      if (!empty($account->uid) && user_access('access user profiles')) {
+        $attributes = array('attributes' => array('title' => t('View user profile.')), 'html' => TRUE);
+        
+        if ( $contact_link ) {
+          $variables['user_picture'] = l($variables['user_picture'], 'user/' . $account->uid . '/contact', $attributes);
+        }
+      }
+    }
+  }
+}

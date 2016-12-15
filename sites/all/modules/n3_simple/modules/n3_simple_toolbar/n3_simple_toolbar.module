@@ -1,0 +1,216 @@
+<?php
+
+// Theme Functions
+function n3_simple_toolbar_theme() {
+	//$module_path = drupal_get_path('module', 'n3_simple_toolbar');
+	//$theme_path = $module_path . '/theme';
+	//$template_path = $module_path . '/template';
+	
+	return array(
+    'n3_simple_toolbar_sidelinks' => array(
+			'render element' => 'element',
+      'arguments' => array('element' => NULL)
+    ),
+	);
+}
+
+// Modify existing theme of the Admin Toolbar
+function n3_simple_toolbar_theme_registry_alter(&$theme_registry) {
+	
+	$module_path = drupal_get_path('module', 'n3_simple_toolbar');
+	$theme_path = $module_path . '/theme';
+	$template_path = $module_path . '/template';
+	
+	// Toolbar Override
+  $theme_registry['toolbar']['path'] = $template_path;
+	
+	// Button
+	//$theme_registry['button']['function'] = 'n3_simple_toolbar_button';
+	//$theme_registry['button']['includes'][] = $theme_path . '/button.inc';
+}
+
+// Render the output of the Side Panel Links (Theme Function)
+function theme_n3_simple_toolbar_sidelinks($variables) {
+	$links = $variables['links'];
+	echo '<ul class="menu">';
+	foreach ($links as $link) {
+		
+		// Open Children
+		$children = '<ul class="menu">';
+		$childrenCount = 0;
+		$childExpandParent = false;
+		
+		// Process Children First!
+		foreach ( $link as $key => $sublink ) {
+			if ( substr($key, 0, 1) != '#' ) {
+				$childrenCount++;
+				$subtitle = $sublink['#name'];
+        if ( $subtitle == '--' ) {
+          echo '<hr />'; continue;
+        }
+        if ( drupal_valid_path($sublink['#path']) ) {
+          if ( !empty($sublink['#icon']) ) $subtitle = '<i class="fa fa-' . $sublink['#icon'] . '"></i> ' . $subtitle;		
+          $sublink_output = '<li>' . l($subtitle, $sublink['#path'], array('html' => TRUE)) . '</li>';
+          if ( strpos($sublink_output, 'class="active"') > -1 ) {
+            $childExpandParent = true;
+          }
+          $children .= $sublink_output;
+        }
+			}
+		}
+		
+		// Close Children
+		$children .= '</ul>';
+		
+		// Main Link
+		$title = $link['#name'];
+    if ( $title == '--' ) {
+      echo '<hr />'; continue;
+    }
+    
+    if ( drupal_valid_path($link['#path']) ) {
+      if ( !empty($link['#icon']) ) $title = '<i class="fa fa-' . $link['#icon'] . '"></i> ' . $title;
+      echo $childExpandParent ? '<li class="expanded active">' : '<li class="expanded">';
+      echo l($title, $link['#path'], array('html' => TRUE));
+      if ( $childrenCount > 0 ) echo $children;
+      echo '</li>';
+    }
+	}
+	echo '</ul>';
+}
+
+// Implements hook_page_build().
+function n3_simple_toolbar_page_alter(&$page) {
+  $page['page_top']['toolbar']['#pre_render'] = array('n3_simple_toolbar_toolbar_pre_render');
+}
+
+// Prerender function for the toolbar.
+function n3_simple_toolbar_toolbar_pre_render($toolbar) {
+  $toolbar = array_merge($toolbar, n3_simple_toolbar_toolbar_view());
+  return $toolbar;
+}
+
+// Builds the admin menu as a structured array ready for drupal_render().
+function n3_simple_toolbar_toolbar_view() {
+  global $user;
+
+  $module_path = drupal_get_path('module', 'toolbar');
+	$n3_simple_toolbar_path = drupal_get_path('module', 'n3_simple_toolbar');
+  $build = array(
+    '#theme' => 'toolbar',
+    '#attached'=> array(
+      'js' => array(
+        $module_path . '/toolbar.js',
+				$n3_simple_toolbar_path . '/js/control-panel.js',
+        array(
+          'data' => array('tableHeaderOffset' => 'Drupal.toolbar.height'),
+          'type' => 'setting'
+        ),
+      ),
+      'css' => array(
+        $n3_simple_toolbar_path . '/css/toolbar.css',
+				
+      ),
+      'library' => array(array('system', 'jquery.cookie')),
+    ),
+  );
+
+  // Retrieve the admin menu from the database.
+  $links = toolbar_menu_navigation_links(toolbar_get_menu_tree());
+  $build['toolbar_menu'] = array(
+    '#theme' => 'links__toolbar_menu',
+    '#links' => $links,
+    '#attributes' => array('id' => 'toolbar-menu'),
+    '#heading' => array('text' => t('Administrative toolbar'), 'level' => 'h2', 'class' => 'element-invisible'),
+  );
+
+  // Add logout & user account links or login link.
+  if ($user->uid) {
+    $links = array(
+      'account' => array(
+        'title' => t('Hello <strong>@username</strong>', array('@username' => format_username($user))),
+        'href' => 'user',
+        'html' => TRUE,
+        'attributes' => array('title' => t('User account')),
+      ),
+      'logout' => array(
+        'title' => t('Log out'),
+        'href' => 'user/logout',
+      ),
+    );
+  }
+  else {
+     $links = array(
+      'login' => array(
+        'title' => t('Log in'),
+        'href' => 'user',
+      ),
+    );
+  }
+  $build['toolbar_user'] = array(
+    '#theme' => 'links__toolbar_user',
+    '#links' => $links,
+    '#attributes' => array('id' => 'toolbar-user'),
+  );
+
+  // Add a "home" link.
+  $link = array(
+    'home' => array(
+      'title' => '<span class="home-link">Home</span>',
+      'href' => '<front>',
+      'html' => TRUE,
+      'attributes' => array('title' => t('Home')),
+    ),
+  );
+  $build['toolbar_home'] = array(
+    '#theme' => 'links',
+    '#links' => $link,
+    '#attributes' => array('id' => 'toolbar-home'),
+  );
+
+  // Add an anchor to be able to toggle the visibility of the drawer.
+  $build['toolbar_toggle'] = array(
+    '#theme' => 'toolbar_toggle',
+    '#collapsed' => _toolbar_is_collapsed(),
+    '#attributes' => array('class' => array('toggle')),
+  );
+
+  // Prepare the drawer links CSS classes.
+  $toolbar_drawer_classes = array(
+    'toolbar-drawer',
+    'clearfix',
+  );
+  if(_toolbar_is_collapsed()) {
+    $toolbar_drawer_classes[] = 'collapsed';
+  }
+  $build['toolbar_drawer_classes'] = implode(' ', $toolbar_drawer_classes);
+
+  return $build;
+}
+
+// Build a List of Links from Sub Modules Hooks.
+function n3_simple_toolbar_links() {
+	if ( $cache = cache_get('simple_control_panel') ) {
+		return $cache->data;
+	} else {
+		$results = array();
+		foreach (module_implements('simple_control_panel') as $module) {
+			$link = module_invoke($module, 'simple_control_panel');
+			foreach ( $link as $link_name => $settings ) {
+				if ( array_key_exists($link_name, $results) ) {
+					$results[$link_name] = array_merge($link[$link_name], $settings);
+				} else {
+					$results[$link_name] = $settings;
+				}
+			}
+		}
+		//cache_set('simple_control_panel', $results, 'cache', CACHE_PERMANENT);
+		return $results;
+	}
+}
+
+function n3_simple_toolbar_preprocess_html(&$vars) {
+  if ( !empty($_COOKIE['Drupal_simpletoolbar_expanded']) ) {
+    $vars['classes_array'][] = 'toolbar-expanded';
+  }
+}

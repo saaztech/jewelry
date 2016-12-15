@@ -1,0 +1,11 @@
+name = Jewelry Candle Build Your Own
+description = Allows for Build Your Own product types.
+package = Jewelry Candle
+dependencies[] = commerce
+dependencies[] = commerce_order
+dependencies[] = commerce_checkout
+dependencies[] = commerce_payment
+dependencies[] = commerce_option
+core = 7.x
+
+stylesheets[all][] = css/buildyourown.css

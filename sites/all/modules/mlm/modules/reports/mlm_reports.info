@@ -1,0 +1,7 @@
+name = MLM Reports
+description = Creates Reports for the MLM System.
+package = Multi-Level Marketing
+dependencies[] = mlm
+core = 7.x
+
+

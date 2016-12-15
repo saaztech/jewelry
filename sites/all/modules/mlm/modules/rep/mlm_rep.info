@@ -1,0 +1,9 @@
+name = MLM Representative
+description = Controls the Representative Marketing Fields, Role, and Access Permissions
+package = Multi-Level Marketing
+dependencies[] = mlm
+core = 7.x
+
+files[] = mlm_rep.install
+
+

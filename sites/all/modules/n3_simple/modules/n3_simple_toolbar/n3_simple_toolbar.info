@@ -1,0 +1,8 @@
+name = N3 Simple Toolbar
+description = Simple Administrative Toolbar & Overlay
+core = 7.x
+package = New Net Nirvana
+version = 1.0.0
+
+dependencies[] = n3_simple
+dependencies[] = toolbar

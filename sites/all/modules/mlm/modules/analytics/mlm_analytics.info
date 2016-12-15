@@ -1,0 +1,16 @@
+name = MLM Analytics
+description = Connects the Google Analytics API.
+package = Multi-Level Marketing
+dependencies[] = commerce
+dependencies[] = commerce_order
+dependencies[] = commerce_checkout
+dependencies[] = commerce_payment
+core = 7.x
+
+;files[] = 
+
+dependencies[] = mlm
+dependencies[] = mlm_rep
+
+
+

@@ -1,0 +1,13 @@
+.build-your-own-output {
+  margin-left: 20px;
+}
+
+.build-your-own-output .field {
+  margin-left: 20px;
+}
+
+.build-your-own-title {
+  font-weight: bold;
+  display: block;
+  border-bottom: 1px solid #CCC;
+}

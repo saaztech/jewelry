@@ -1,0 +1,20 @@
+<?php
+
+function mlm_rep_package_install() {
+  //commerce_price_create_instance('commerce_price', 'commerce_product', 'representative_package', t('Price'), 0, 'calculated_sell_price');
+  
+  
+//  $rep_package = commerce_product_ui_product_type_new();
+//
+//  $rep_package['type'] = 'representative_package';
+//  $rep_package['name'] = t('Representative Package');
+//  $rep_package['description'] = t('Contains products that allow a user to become a Representative upon purchase.');
+//  $rep_package['is_new'] = TRUE;
+//
+//  commerce_product_ui_product_type_save($rep_package, FALSE);
+}
+
+
+function mlm_rep_package_uninstall() {
+  commerce_product_ui_product_type_delete('representative_package', FALSE);
+}

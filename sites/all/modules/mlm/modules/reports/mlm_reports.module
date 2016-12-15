@@ -1,0 +1,422 @@
+<?php
+
+
+/**
+ * Implements hook_block_info().
+ */
+function mlm_reports_block_info() {
+  $blocks = array();
+  $blocks['mlm_sales_widget'] = array(
+    'info' => 'Sales Reports',
+    'region' => 'dashboard_main',
+    'cache' => DRUPAL_CACHE_GLOBAL,
+  );
+  
+  $blocks['mlm_traffic_widget'] = array(
+    'info' => 'Traffic Report',
+    'region' => 'dashboard_main',
+    'cache' => DRUPAL_CACHE_GLOBAL,
+  );
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function mlm_reports_block_view($delta = '') {
+  $block = array();
+  
+  switch ($delta) {
+    case 'mlm_sales_widget' :
+      $block['content'] = mlm_reports_sales_widget();
+      break;
+    
+    case 'mlm_traffic_widget' :
+      $block['content'] = mlm_reports_traffic_widget();
+      break;
+  }
+  
+  return $block;
+}
+
+
+function mlm_reports_traffic_widget() {
+  // Add the Reports CSS & Javascript
+  $module_path = drupal_get_path('module', 'mlm_reports');
+  drupal_add_css($module_path . '/css/reports.css');
+  drupal_add_js($module_path . '/js/reports.js');
+  drupal_add_js('https://www.gstatic.com/charts/loader.js', 'external');
+  
+  // Load Analytics
+  $analytics = mlm_analytics_get_analytics();
+  $property_id = variable_get('mlm_analytics');
+  $account_id = variable_get('mlm_analytics_account');
+  $profile_id = variable_get('mlm_analytics_profile');
+  
+  // Create the Time Periods
+  $data = array(
+    'today' => array(
+      'description' => 'Today',
+      'start' => strtotime('today 0:00:00'),
+      'end' => strtotime('today 23:59:59'),
+      'visitors' => 0,
+      'pages' => 0,
+    ),
+    'this_week' => array(
+      'description' => 'This Week',
+      'start' => strtotime('last sunday 0:00:00'),
+      'end' => strtotime('next saturday 23:59:59'),
+      'visitors' => 0,
+      'pages' => 0,
+    ),
+    'this_month' => array(
+      'description' => 'This Month',
+      'start' => strtotime('first day of this month 0:00:00'),
+      'end' => strtotime('last day of this month 23:59:59'),
+      'visitors' => 0,
+      'pages' => 0,
+    ),
+     'last_month' => array(
+      'description' => 'Last Month',
+      'start' => strtotime('first day of last month 0:00:00'),
+      'end' => strtotime('last day of last month 23:59:59'),
+      'visitors' => 0,
+      'pages' => 0,
+    ),
+  );
+  
+  // Get Visitors
+  $visitors = $analytics->data_ga->get(
+    'ga:' . $profile_id,
+    '60daysAgo',
+    'today',
+    'ga:users', array(
+      'dimensions' => 'ga:date',
+    )); $visitorData = $visitors->getRows();
+    
+  $pageviews = $analytics->data_ga->get(
+    'ga:' . $profile_id,
+    '60daysAgo',
+    'today',
+    'ga:pageviews', array(
+      'dimensions' => 'ga:date',
+  )); $pageData = $pageviews->getRows();  
+  
+  
+  // Process Visitors
+  foreach ( $visitorData as $row ) {
+    $date = strtotime($row[0]);
+    foreach ( $data as &$element ) {
+      if ( $date >= $element['start'] && $date <= $element['end'] ) {
+        $element['visitors'] += $row[1];
+      }
+    }
+  }
+  
+  // Process Pageviews
+  foreach ( $pageData as $row ) {
+    $date = strtotime($row[0]);
+    foreach ( $data as &$element ) {
+      if ( $date >= $element['start'] && $date <= $element['end'] ) {
+        $element['pages'] += $row[1];
+      }
+    }
+  }
+  
+  // Create the base Table
+  $table = array(
+    'header' => array(
+      'period' => array('data' => 'Time Period', 'colspan' => 2),
+      'visitors' => array('data' => 'Visitors', 'class' => array('text-center')),
+      'pageviews' => array('data' => 'Page Views', 'class' => array('text-center')),
+    ),
+    'attributes' => array(),
+    'rows' => array(),
+  );
+  
+  // Add a row for each time period
+  foreach ( $data as $dateRange ) {
+    $table['rows'][] = array(
+      'period' => array('data' => $dateRange['description']),
+      'date' => array('data' => mlm_reports_format_date_description($dateRange['start'], $dateRange['end'])),
+      'visitors'  => array('data' => $dateRange['visitors'], 'class' => array('text-center')),
+      'pageviews'   => array('data' => $dateRange['pages'], 'class' => array('text-center')),
+    );
+  }
+  
+ // Return the rendered table
+  return theme('table', $table);
+}
+
+
+/**
+ * Custom function to assemble renderable array for block content.
+ * Returns a renderable array with the block content.
+ * @return
+ *   returns a renderable array of block content.
+ */
+function mlm_reports_sales_widget() {
+  // Add the Reports CSS & Javascript
+  $module_path = drupal_get_path('module', 'mlm_reports');
+  drupal_add_css($module_path . '/css/reports.css');
+  drupal_add_js($module_path . '/js/reports.js');
+  drupal_add_js('https://www.gstatic.com/charts/loader.js', 'external');
+  
+  // Initialize Content
+  $content = '';
+  
+  // Add Content buttons
+  $content .= '<p>';
+  $content .= '<a href="#" class="mlm-report-tab-button active" data-tab="report-tab-summary" title="Sales Summary"><i class="fa fa-fw fa-table"></i> Summary</a>';
+  $content .= '<a href="#" class="mlm-report-tab-button" data-tab="report-tab-daily" title="daily"><i class="fa fa-fw fa-calendar"></i> Daily</a>';
+  $content .= '<a href="#" class="mlm-report-tab-button" data-tab="report-tab-monthly" title="daily"><i class="fa fa-fw fa-calendar-o"></i> Monthly</a>';
+  //$content .= '<a href="#" class="mlm-report-tab-button" data-tab="categories" title="Categories">cats</a>';
+  $content .= '</p>';
+  
+  // Summary Table
+  $content .= '<div class="mlm-report-tab active first" id="report-tab-summary">' . mlm_reports_summary_table() . '</div>';
+  $content .= '<div class="mlm-report-tab " id="report-tab-daily">' . mlm_reports_daily_table() . '</div>';
+  $content .= '<div class="mlm-report-tab " id="report-tab-monthly">' . mlm_reports_monthly_table() . '</div>';
+  return $content;
+}
+
+/**
+ * Create the base Reports table.
+ * @return array
+ */
+function mlm_reports_table_base() {
+  $table = array(
+    'header' => array(
+      'period' => array('data' => 'Time Period', 'colspan' => 2),
+      'orders' => array('data' => 'Orders', 'class' => array('text-center')),
+      'sales' => array('data' => 'Sales', 'class' => array('text-right')),
+    ),
+    'rows' => array(),
+    'attributes' => array(),
+  );
+  
+  return $table;
+}
+
+
+function mlm_reports_monthly_table() {
+  // Get Orders from the past 30 days
+  $orders = mlm_reports_orders_date_range(strtotime('-12 month 0:00:00'), strtotime('now'));
+  
+  // Get the Orders Data
+  $report_data = mlm_reports_order_data($orders);
+  
+  // Return the rendered Table
+  //$content = theme('table', $table);
+  $content = '<h4 class="report-head">Sales for the last 12 months</h4><div id="MLMMonthlyReport" class="MLMReportChart"></div>';
+  
+  $content .= '<script>
+    google.charts.setOnLoadCallback(function () {
+      var data = new google.visualization.arrayToDataTable(' . drupal_json_encode($report_data['monthly']) . ');
+      var options = {hAxis: {title: "Date"}, vAxis: {title: "Sales"}, chartArea: {  width: "60%", height: "70%" }};
+      var chart = new google.visualization.LineChart(document.getElementById("MLMMonthlyReport"));
+      chart.draw(data, options);
+    });
+    </script>';
+  
+  return $content;
+}
+
+
+function mlm_reports_daily_table() {
+  // Get Orders from the past 30 days
+  $orders = mlm_reports_orders_date_range(strtotime('-31 day 0:00:00'), strtotime('-1 day 0:00:00'));
+  
+  // Get the Orders Data
+  $report_data = mlm_reports_order_data($orders);
+  
+  // Return the rendered Table
+  //$content = theme('table', $table);
+  $content = '<h4 class="report-head">Sales for the last 30 days</h4><div id="MLMDailyReport" class="MLMReportChart"></div>';
+  
+  $content .= '<script>
+    google.charts.setOnLoadCallback(function () {
+      var data = new google.visualization.arrayToDataTable(' . drupal_json_encode($report_data['daily']) . ');
+      var options = {hAxis: {title: "Date", showTextEvery: 5}, vAxis: {title: "Sales"}, chartArea: {  width: "60%", height: "70%" }};
+      var chart = new google.visualization.LineChart(document.getElementById("MLMDailyReport"));
+      chart.draw(data, options);
+    });
+    </script>';
+  
+  return $content;
+}
+
+
+/**
+ * Get a Summary Table of order data.
+ * @return string The rendered summary table.
+ */
+function mlm_reports_summary_table() {
+  // Create the Sales Table
+  $table = mlm_reports_table_base();
+  
+  // Add Report Rows
+  mlm_reports_sales_table_add_range($table, 'Today', strtotime('today 0:00:00'));
+  mlm_reports_sales_table_add_range($table, 'This Week', strtotime('last sunday 0:00:00'), strtotime('next saturday 23:59:59'));
+  mlm_reports_sales_table_add_range($table, 'This Month', strtotime('first day of this month 0:00:00'), strtotime('last day of this month 23:59:59'));
+  mlm_reports_sales_table_add_range($table, 'Last Month', strtotime('first day of last month 0:00:00'), strtotime('last day of last month 23:59:59'));
+  
+  // Return the Summary Table
+  return theme('table', $table);
+}
+
+
+/**
+ * Adds a row to the sales report table.
+ * @param   array   $table          The table to add a row to.
+ * @param   string  $description    A description to add to the table's period column.
+ * @param   int     $start          If greater than 0, the start date to retrieve orders for. Otherwise retrieve all orders before the end date.
+ * @param   int     $end            If greater than 0, the end date to retrieve orders for. Otherwise retrieve all orders after the start date.
+ */
+function mlm_reports_sales_table_add_range(&$table, $description = '', $start = 0, $end = 0) {
+  // Get Orders from the past week.
+  $orders = mlm_reports_orders_date_range($start, $end);
+  
+  // Get the Orders Data
+  $report_data = mlm_reports_order_data($orders);
+  
+  // Format the Sales Total
+  $sales = '$' . number_format($report_data['order_total'] / 100, 2);
+  
+  // Add the Row
+  $table['rows'][] = array(
+    'period' => array('data' => $description),
+    'date' => array('data' => mlm_reports_format_date_description($start, $end)),
+    'orders'  => array('data' => $report_data['order_count'], 'class' => array('text-center')),
+    'sales'   => array('data' => $sales, 'class' => array('text-right')),
+  );
+}
+
+
+/**
+ * Formats a date description string.
+ * @param   int     $start    If greater than 0, the start date for the description.
+ * @param   int     $end      If greater than 0, the end date for the description.
+ * @return  string            The formated date range string.
+ */
+function mlm_reports_format_date_description($start, $end) {
+  if ( empty($end) ) {
+    $end = time();
+  }
+  
+  // Get the Months
+  $start_month = date('M', $start);
+  $end_month = date('M', $end);
+  
+  // Day of the Month.
+  $start_day = date('j', $start);
+  $end_day = date('j', $end);
+  
+  
+  // Create the Opening Start date Description
+  $description = date('M jS', $start);
+  
+  // If the months are the same, just add the end day.
+  if ( $start_month == $end_month && $start_day != $end_day ) {
+    $description .= ' - ' . date('jS', $end);
+  } elseif ( $start_month != $end_month ) {
+    $description .= ' - ' . date('M jS', $end);
+  }
+
+  
+  // Return the final Description
+  return $description;
+}
+
+
+
+/**
+ * Retrieves a list of order ids from a date range.
+ * @param   int     $start    If greater than 0, the start date to retrieve orders for. Otherwise retrieve all orders before the end date.
+ * @param   int     $end      If greater than 0, the end date to retrieve orders for. Otherwise retrieve all orders after the start date.
+ * @return  array             An array of loaded orders.
+ */
+function mlm_reports_orders_date_range($start = 0, $end = 0) {
+  // Create the Query
+  $query = new EntityFieldQuery();
+  $query->entityCondition('entity_type', 'commerce_order');
+  $query->propertyCondition('status', array('completed', 'pending'));
+  
+  // Add a Start condition
+  if ( !empty($start) ) {
+    $query->propertyCondition('created', $start, '>=');
+  }
+  
+  if ( !empty($end) ) {
+    $query->propertyCondition('created', $end, '<=');
+  }
+  
+  // Results
+  $results = $query->execute();
+  
+  // Extract Commerce Order Ids
+  $order_ids = array_key_exists('commerce_order', $results) ? array_keys($results['commerce_order']) : array();
+  
+  // Return the Results
+  return commerce_order_load_multiple($order_ids);
+}
+
+/**
+ * Builds report data for a series of orders.
+ * @param   object[]  $orders   An array of orders to load.
+ * @return  array               An array of report data.
+ */
+function mlm_reports_order_data($orders) {
+  
+  $results = array(
+    'order_count' => count($orders),
+    'order_total' => 0,
+    'product_count' => 0,
+    'categories' => array(
+      
+    ),
+    
+    'daily' => array(
+      array(array("type" => 'string', "label" => 'Date'), array("type" => "number", "label" => "Sales")),
+    ),
+    
+    'monthly' => array(
+      array(array("type" => 'string', "label" => 'Date'), array("type" => "number", "label" => "Sales")),
+    ),
+  );
+  
+  foreach ( $orders as $order_id => $order ) {
+    // Load the Wrapper
+    $order_wrapper = entity_metadata_wrapper('commerce_order', $order);
+    
+    // Get the Order Total
+    $amount = $order_wrapper->commerce_order_total->value();
+    $order_total = $amount['amount'];
+    $results['order_total'] += $order_total;
+    
+    // Daily Total
+    $day = date('M j', $order->created);
+    $day_key = strtotime($day . ' 0:00:00');
+    if ( !array_key_exists($day_key, $results['daily']) ) {
+      //$day_display = "Date(" . date("Y, ", $order->created) . (date("n", $order->created) - 1) . date(" , j", $order->created) . ")";
+      $results['daily'][$day_key] = array($day, array('v' => 0, 'f' => '$0.00'));
+    } $results['daily'][$day_key][1]['v'] += $order_total / 100;
+    $results['daily'][$day_key][1]['f'] = '$' . number_format($results['daily'][$day_key][1]['v'], 0);
+    
+    // Monthly Total
+    $month = date('F', $order->created);
+    $month_key = strtotime($month . ' 1st 0:00:00');
+    if ( !array_key_exists($month_key, $results['monthly']) ) {
+      $results['monthly'][$month_key] = array($month, array('v' => 0, 'f' => '$0.00'));
+    } $results['monthly'][$month_key][1]['v'] += $order_total / 100;
+    $results['monthly'][$month_key][1]['f'] = '$' . number_format($results['monthly'][$month_key][1]['v'], 0);
+  }
+  
+  // Recollapse these values.
+  $results['daily'] = array_values($results['daily']);
+  $results['monthly'] = array_values($results['monthly']);
+  
+  // Return Results
+  return $results;
+}
+

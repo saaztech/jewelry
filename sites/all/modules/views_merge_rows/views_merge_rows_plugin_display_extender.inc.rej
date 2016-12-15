@@ -1,0 +1,10 @@
+--- views_merge_rows_plugin_display_extender.inc
++++ views_merge_rows_plugin_display_extender.inc
+@@ -104,7 +104,6 @@
+       );
+ 
+       $form['field_config'][$field]['separator'] = array(
+-        '#id' => 'views-merge-rows-separator',
+         '#title' => t('Separator:'),
+         '#type' => 'textfield',
+ 

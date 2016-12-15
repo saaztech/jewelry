@@ -1,0 +1,36 @@
+<?php
+
+function n3_simple_preprocess_html(&$variables) {
+  n3_simple_css('font-awesome/css/font-awesome.min');
+// Add conditional stylesheets for admin pages on admin theme.
+  if (arg(0)=='admin') {
+    n3_simple_css('admin');
+  }
+}
+
+function n3_simple_css($css) {
+  $module_path = drupal_get_path('module', 'n3_simple');
+  drupal_add_css($module_path . '/assets/css/' . $css . '.css', array('weight' => CSS_THEME));
+  //drupal_add_css('http://development.amatemedia.com/n3-less/1.1/n3_simple/' . $css . '.css');
+}
+
+/**
+* Returns a List of Node Types
+*/
+function n3_simple_node_types() {
+   $results = array();
+   
+		// Get the Node Types
+		$node_types = db_select('node_type', 'n')
+		  ->fields('n', array('type', 'name'))
+		  ->execute();
+ 
+   //Process Query Results
+	  while ( $type = $node_types->fetchObject() ) {
+	    $results[$type->type] = $type->name;
+	  }
+	  
+	  // Return Results
+	  return $results;
+}
+

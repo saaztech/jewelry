@@ -1,0 +1,19 @@
+--- views_merge_rows.module
++++ views_merge_rows.module
+@@ -49,7 +49,6 @@
+   $table = theme('table', array('header' => $header, 'rows' => $rows));
+ 
+   $form['table_fieldset'] = array(
+-    '#id' => 'views-merge-rows-table-fieldset',
+     '#title' => t('Configure merging options for the fields'),
+     '#type' => 'fieldset',
+     '#dependency' => array('edit-options-merge-rows' => array(1)),
+@@ -126,7 +125,7 @@
+         switch ($field_config['merge_option']) {
+           case 'merge_unique':
+           case 'count_unique':
+-            if (!empty($rendered_row[$field_name]) && !in_array($rendered_row[$field_name], $merged_row[$field_name])) {
++            if (!in_array($rendered_row[$field_name], $merged_row[$field_name])) {
+               $merged_row[$field_name][] = $rendered_row[$field_name];
+             }
+             break;

@@ -1,0 +1,8 @@
+name = MLM Representative Package
+description = Creates and manages the Representative Package Product Type
+package = Multi-Level Marketing
+dependencies[] = mlm_rep
+core = 7.x
+
+files[] = rep_package.install
+

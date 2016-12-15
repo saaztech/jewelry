@@ -1,0 +1,201 @@
+<?php
+
+function n3_simple_nodes_menu() {
+		$items = array();
+		
+		// Get the Node Types
+		$node_types = db_select('node_type', 'n')
+		->fields('n', array('type', 'name'))
+		->execute();
+ 
+ // Add a Page for each Node Type
+	while ( $node_type = $node_types->fetchAssoc() ) {
+ $path = sprintf('admin/content/%s', $node_type['type']);
+ $items[$path] = array(
+			'title' => $node_type['name'],
+			'title callback' => 'check_plain',
+			'page callback' => 'drupal_get_form',
+			'expanded' => 0,
+			'page arguments' => array('n3_simple_content_type', $node_type['type']),
+      'file' => 'includes/content.admin.inc',
+			'access callback' => 'node_access',
+      'access arguments' => array('create', $node_type['type']),
+			'type' => MENU_LOCAL_TASK,
+		);
+ }
+ 
+
+ return $items;
+}
+
+/**
+ * Alter the data being saved to the {menu_router} table after hook_menu is invoked.
+ * @param array $items Associative array of menu router definitions returned from hook_menu().
+ * @see hook_menu_alter()
+ */
+function n3_simple_nodes_menu_alter(&$items) {
+ $items['admin/content']['page callback'] = 'n3_simple_nodes_content';
+ $items['admin/content']['module'] = 'n3_simple_nodes';
+ $items['admin/content']['file'] = 'includes/content.admin.inc';
+}
+
+function n3_simple_nodes_menu_local_tasks_alter(&$data, $router_item, $root_path) {
+ $path = $router_item['path'];
+ if ( substr($path, 0, 14) != 'admin/content/' ) {
+   return;
+ }
+ 
+$content_type = substr($path, 14);
+$node_types = n3_simple_node_types();
+if ( !array_key_exists($content_type, $node_types) ) {
+  return;
+}
+ 
+$data['actions']['output'][] = array(
+ '#theme' => 'menu_local_task',
+ '#link' => array(
+  'title' => t('New ' . $node_types[$content_type]),
+  'href' => 'node/add/' . $content_type,
+  'localized_options' => array(
+   'attributes' => array(
+    'title' => t('New ' . $node_types[$content_type]),
+   ),
+  ),
+ ),
+);
+
+}
+
+// CHANGE THIS: Automatically calculate position of "Path" and push this after that.
+function n3_simple_nodes_module_implements_alter(&$implementations, $hook) {
+ if ($hook == 'form_alter' && array_key_exists('n3_simple_nodes', $implementations)) {
+  $group = $implementations['n3_simple_nodes'];
+  unset($implementations['n3_simple_nodes']);
+  $implementations['n3_simple_nodes'] = $group;
+ } 
+}
+
+/**
+ * Perform alterations on node_form before a form is rendered.
+ * @param array $form Nested array of form elements that comprise the form.
+ * @param array $form_state A keyed array containing the current state of the form.
+ * @param string $form_id String representing the name of the form itself. Typically this is the name of the function that generated the form.
+ * @see hook_form_BASE_FORM_ID_alter()
+ */
+function n3_simple_nodes_form_node_form_alter(&$form, &$form_state, $form_id) {
+ // Get the Node
+ $node = $form['#node'];
+ 
+ // Add N3 Simple's Form CSS to this.
+ n3_simple_css('form');
+ 
+ // If this Node Type is not enabled for N3 Simple Forms, then exit.
+ if ( false ) return;
+
+ // Update the Form Class
+ $form['#attributes']['class'][] = 'n3-simple-nodes-form';
+ 
+
+ // Update the Menu
+ if ( true ) _n3_simple_nodes_alter_menu($form, $form_state);
+ 
+ // Update the URL Path Settings
+ //if ( true ) _n3_simple_nodes_alter_url_path($form, $form_state);
+ 
+}
+
+/**
+ * Repositions a form element immediatly after another element.
+ * @param array $element The form element to be repositioned.
+ * @param array $after_element The form element to reposition after.
+ */
+function _n3_reposition_element_after_element(&$element, &$after_element) {
+ $after_element_weight = isset($after_element['#weight']) ? $after_element['#weight'] : 0;
+ $element['#weight'] = $after_element_weight;
+ $after_element['#weight'] = $after_element_weight - 1;
+}
+
+/**
+ * Alters the standard node form's menu link fields.
+ * @param array $form Nested array of form elements that comprise the form.
+ * @param array $form_state A keyed array containing the current state of the form.
+ */
+function _n3_simple_nodes_alter_menu(&$form, &$form_state) {
+ $form['menu']['#attributes']['class'][] = 'simple-node-menu-settings';
+}
+
+/**
+ * Alters the standard node form's URL Path fields.
+ * @global string $base_url The base URL of the Drupal installation.
+ * @param array $form Nested array of form elements that comprise the form.
+ * @param array $form_state A keyed array containing the current state of the form.
+ */
+function _n3_simple_nodes_alter_url_path(&$form, &$form_state) {
+ global $base_url;
+ 
+ // Add the Javascript Files
+ $module_path = drupal_get_path('module', 'n3_simple_nodes');
+ $form['#attached']['js'][] = $module_path . '/assets/js/n3_simple_nodes.js';
+ 
+ // Disable the Grouping of the URL Settings
+ unset($form['path']['#group']);
+ $form['path']['#type'] = 'container';
+ 
+ // Move this element after the Title Element
+ _n3_reposition_element_after_element($form['path'], $form['title']);
+ 
+ // Change the Title & Description
+ $form['path']['alias']['#title'] = 'Permalink';
+ $form['path']['alias']['#title_display'] = 'invisible';
+ unset($form['path']['alias']['#description']);
+ 
+ // Fix the Sizing
+ //$form['path']['alias']['#size'] = 5; 
+ 
+ // Update the Classes
+ $form['path']['alias']['#attributes']['class'][] = 'n3-simple-textfield-incognito';
+ $form['path']['alias']['#attributes']['class'][] = 'n3-simple-nodes-url-path';
+ 
+ // Update the Title's Class to allow javascript.
+ $form['title']['#attributes']['class'][] = 'n3-simple-nodes-title';
+ 
+ // Build the Parent Selector
+ $form['path']['parent'] = array(
+ '#type' => 'select',
+ '#title' => 'Parent Item',
+ '#default_value' => '',
+ '#empty_option' => 'None',
+ '#options' => array(),
+ '#attributes' => array(
+ 'class' => array('n3-simple-nodes-parent-item'),
+ )
+ );
+ 
+ // Populate the Parent Selector
+ $node = $form['#node'];
+ $query = db_select('node', 'n')
+ ->fields('n', array('nid', 'title'))
+ ->condition('n.type', $node->type, '=')
+ ->condition('n.status', 1, '=');
+ if ( !empty($node->nid) ) {
+ $query->condition('nid', $node->nid, '!=');
+ }
+ $query->addJoin('LEFT OUTER', 'url_alias', 'url', "url.source = CONCAT('node/', n.nid)");
+ $query = $query->fields('url', array('alias'));
+ $nodes = $query->execute();
+ while ( $_node = $nodes->fetchObject() ) {
+ $form['path']['parent']['#options'][$_node->alias] = $_node->title;
+ }
+ 
+ if ( !empty($form['path']['alias']['#default_value']) ) {
+ $default_alias = $form['path']['alias']['#default_value'];
+ $alias_components = explode('/', $default_alias);
+ $parent_default = substr($default_alias, 0, strrpos($default_alias, '/') - strlen($default_alias) );
+ $form['path']['parent']['#default_value'] = $parent_default;
+ }
+ 
+ 
+ // Add the base URL to the field
+ $form['path']['alias']['#field_prefix'] = '<strong>Permalink: </strong>' . $base_url . '/';
+ //$form['path']['alias']['#field_suffix'] = '/';
+}

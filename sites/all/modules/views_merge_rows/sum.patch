@@ -1,0 +1,55 @@
+commit 0fe150de85e8bc12b2a38378899b6c53fbe7cdff
+Author: Lucas Constantino Silva <lucasconstantinosilva@gmail.com>
+Date:   Thu Oct 1 01:36:31 2015 -0300
+
+    Added sum capability to row merger.
+
+diff --git a/views_merge_rows.module b/views_merge_rows.module
+index 6166eea..f888928 100644
+--- a/views_merge_rows.module
++++ b/views_merge_rows.module
+@@ -103,6 +103,7 @@ function views_merge_rows_views_pre_render(&$view) {
+           case 'count_unique':
+           case 'merge_unique':
+           case 'merge':
++          case 'sum':
+             $merged_row[$field_name] = array($rendered_row[$field_name]);
+             break;
+
+@@ -132,6 +133,7 @@ function views_merge_rows_views_pre_render(&$view) {
+             break;
+
+           case 'merge':
++          case 'sum':
+             $merged_row[$field_name][] = $rendered_row[$field_name];
+             break;
+
+@@ -164,6 +166,14 @@ function views_merge_rows_views_pre_render(&$view) {
+             = implode($field_config['separator'], $merged_row[$field_name]);
+           break;
+
++        case 'sum':
++          $sum = 0;
++          foreach ($merged_row[$field_name] as $amount) {
++            $sum += $amount;
++          }
++          $view->style_plugin->rendered_fields[$row_index][$field_name] = $sum;
++          break;
++
+         case 'count_unique':
+           $view->style_plugin->rendered_fields[$row_index][$field_name]
+             = count($merged_row[$field_name]);
+diff --git a/views_merge_rows_plugin_display_extender.inc b/views_merge_rows_plugin_display_extender.inc
+index 8460072..75d9288 100644
+--- a/views_merge_rows_plugin_display_extender.inc
++++ b/views_merge_rows_plugin_display_extender.inc
+@@ -98,7 +98,8 @@ class views_merge_rows_plugin_display_extender extends views_plugin_display_exte
+           'filter' => t('Use values of this field as a filter'),
+           'first_value' => t('Use the first value of this field'),
+           'count' => t('Count merged values of this field'),
+-          'count_unique' => t('Count merged unique values of this field'),
++          'count_unique' => t('Count merged unique values of this field'),
++          'sum' => t('Sum values of this field'),
+         ),
+         '#default_value' => $options['field_config'][$field]['merge_option'],
+       );

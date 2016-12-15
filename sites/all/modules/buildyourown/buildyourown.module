@@ -1,0 +1,214 @@
+<?php
+
+function buildyourown_form_commerce_cart_add_to_cart_form_alter(&$form, &$form_state, $form_id) {
+  $product = $form_state['default_product'];
+  if ( !empty($product->field_build_your_own[LANGUAGE_NONE]) ) {
+    $buildFields = $product->field_build_your_own[LANGUAGE_NONE];
+    buildyourown_build_form($form, $form_state, $product, $buildFields);
+  }
+}
+
+
+
+function buildyourown_build_form(&$form, &$form_state, $product, $buildFields) {
+  // Title above the Fieldset
+  $form['buildyourown_title'] = array(
+    '#markup' => '<h3>Build Your Own</h3>',
+  );
+  
+  // The actual Fieldset
+  $form['buildyourown_fieldset'] = array(
+    
+   // '#title' => 'Build Your Own',
+  );
+  
+  $form['buildyourown'] = array(
+    '#tree' => TRUE,
+    '#type' => 'vertical_tabs',
+  );
+  
+  
+  foreach ( $buildFields as $build_id => $option_set ) {
+    $collection_id = $option_set['value'];
+    $collection = entity_load_single('field_collection_item', array($collection_id));
+    buildyourown_collection_fieldset($collection, $build_id, $form, $form_state);
+  }
+  
+  $form['#submit'][] = 'buildyourown_add_to_cart_submit';
+}
+
+
+function buildyourown_collection_fieldset($collection, $key, &$form, &$form_state) {
+  $title = $collection->field_build_own_title[LANGUAGE_NONE][0]['safe_value'];
+  $option_set_id = $collection->field_option_set[LANGUAGE_NONE][0]['target_id'];
+  
+  $option_set = commerce_option_set_load($option_set_id);
+  $values = array('set_id' => $option_set->set_id);
+  $option = commerce_option_new($values);
+  
+  $form_state['commerce_option']['buildyourown'][$key]['option'] = $option;
+  
+  $form['buildyourown'][$key] = array(
+    '#build_id' => $build_id,
+    '#group' => 'buildyourown',
+    '#type' => 'fieldset',
+    '#title' => $title,
+    '#parents' => array('buildyourown'),
+    
+  );
+  
+  field_attach_form('commerce_option', $option, $form['buildyourown'][$key], $form_state);
+
+  
+  // return the built element
+  return $element;
+}
+
+function buildyourown_add_to_cart_submit($form, $form_state) {
+  
+  // Get the Product ID
+  $product_id = $form_state['default_product_id'];
+  
+  // Load the Product
+  $product = commerce_product_load($product_id);
+  
+  // If there is no product, get out of here.
+  if ( empty($product->field_build_your_own[LANGUAGE_NONE]) ) {
+    return;
+  }
+  
+  // Initialize Results
+  $results = '';
+  
+  // Determine which build your own fields exist.
+  $buildFields = $product->field_build_your_own[LANGUAGE_NONE];
+  
+  // Loop over each build field.
+  foreach ( $buildFields as $build_id => $option_set ) {
+    // Get the collection id.
+    $collection_id = $option_set['value'];
+    
+    // Load the Collection
+    $collection = entity_load_single('field_collection_item', array($collection_id));
+    
+    // Get the title of the build item.
+    $title = $collection->field_build_own_title[LANGUAGE_NONE][0]['safe_value'];
+    
+    // Determine the option set id.
+    $option_set_id = $collection->field_option_set[LANGUAGE_NONE][0]['target_id'];
+    
+    // Load the option from the formstate.
+    $option = $form_state['commerce_option']['buildyourown'][$build_id]['option'];
+    
+    // Attach the submitted values to the option.
+    field_attach_submit('commerce_option', $option, $form['buildyourown'][$build_id], $form_state);
+    
+    // Extract the option values into an array of field => values.
+    $option_extracted = commerce_option_get_valuables($option);
+    
+    // Create this row.
+    $row = '<div class="build-your-own-title">' . $title . '</div>';
+    
+    // Loop over each field in the array.
+    foreach ( $option_extracted as $field_id => $fieldValues ) {
+      //$row .= "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
+//       if ( !empty($fieldValues[LANGUAGE_NONE][0]['tid']) ) {
+        $display = array('type' => 'taxonomy_term_reference_plain', 'label' => 'inline');
+//       } elseif ( !empty($fieldValues[LANGUAGE_NONE][0]['value']) ) {
+//         $display = array('type' => 'text_plain', 'label' => 'inline');
+//       } elseif ( !empty($fieldValues[LANGUAGE_NONE][0]['fid']) ) {
+//         $fid = $fieldValues[LANGUAGE_NONE][0]['fid'];
+//         $file = file_load($fid);
+//         $thumbnail_url = image_style_url('medium', $file->uri);
+//         $imagelink = file_create_url($file->uri);
+//         $imagetag = '<img src="' . $thumbnail_url . '">';
+//         $row .= '<br>' . l($imagetag, $imagelink, array('external' => TRUE, 'html' => TRUE));
+//         continue;
+//       } else {
+//          $display = array('type' => 'text_plain', 'label' => 'inline');
+//       }
+      
+      $fieldView = field_view_field('commerce_option', $option, $field_id, $display);
+      $row .= render($fieldView);
+    }
+    
+    // Add this row to the master results.
+    $results .= $row . '<br>';
+  }  
+  
+  
+  // Load the line item.
+  $line_item = &$form_state['line_item'];
+  $line_item->field_build_selection = array();
+  $line_item->field_build_selection[LANGUAGE_NONE][0]['value'] = $results;
+  $line_item->field_build_selection[LANGUAGE_NONE][0]['#format'] = 'plain_text';
+  
+  // Save Line Item
+  commerce_line_item_save($line_item);
+}
+
+
+
+
+function buildyourown_field_formatter_info() {
+  return array(
+    'buildyourown_selection' => array( //Machine name of the formatter
+      'label' => t('Build Your Own'),
+      'field types' => array('text_long'), //This will only be available to text fields
+    ),
+  );
+}
+
+
+function buildyourown_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
+  $element = array();
+  foreach ( $items as $delta => $value ) {
+    $element[$delta] = array(
+      '#markup' => '<div class="build-your-own-output">' . $value['value'] . '</div>',
+      '#html' => TRUE,
+    );
+  }
+  
+  return $element;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
