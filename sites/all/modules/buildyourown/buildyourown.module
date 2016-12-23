@@ -53,7 +53,7 @@ function buildyourown_collection_fieldset($collection, $key, &$form, &$form_stat
     '#group' => 'buildyourown',
     '#type' => 'fieldset',
     '#title' => $title,
-    '#parents' => array('buildyourown'),
+    '#parents' => array('buildyourown',$key),
     
   );
   
