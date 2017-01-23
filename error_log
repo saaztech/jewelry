@@ -1,0 +1,97 @@
+[16-Dec-2016 08:56:58 UTC] PHP Fatal error:  require_once(): Failed opening required '/home/jcdev/public_html/modules/system/system.install' (include_path='.:/opt/cpanel/ea-php56/root/usr/share/pear') in /home/jcdev/public_html/includes/install.core.inc on line 241
+[16-Dec-2016 08:57:00 UTC] PHP Fatal error:  require_once(): Failed opening required '/home/jcdev/public_html/modules/system/system.install' (include_path='.:/opt/cpanel/ea-php56/root/usr/share/pear') in /home/jcdev/public_html/includes/install.core.inc on line 241
+[16-Dec-2016 08:57:00 UTC] PHP Fatal error:  require_once(): Failed opening required '/home/jcdev/public_html/modules/system/system.install' (include_path='.:/opt/cpanel/ea-php56/root/usr/share/pear') in /home/jcdev/public_html/includes/install.core.inc on line 241
+[16-Dec-2016 08:57:00 UTC] PHP Fatal error:  require_once(): Failed opening required '/home/jcdev/public_html/modules/system/system.install' (include_path='.:/opt/cpanel/ea-php56/root/usr/share/pear') in /home/jcdev/public_html/includes/install.core.inc on line 241
+[16-Dec-2016 08:57:00 UTC] PHP Fatal error:  require_once(): Failed opening required '/home/jcdev/public_html/modules/system/system.install' (include_path='.:/opt/cpanel/ea-php56/root/usr/share/pear') in /home/jcdev/public_html/includes/install.core.inc on line 241
+[16-Dec-2016 07:57:24 America/New_York] PHP Fatal error:  Class 'Google_Client' not found in /home/jcdev/public_html/sites/all/modules/mlm/modules/analytics/mlm_analytics.module on line 35
+[16-Dec-2016 07:58:34 America/New_York] PHP Fatal error:  Class 'Google_Client' not found in /home/jcdev/public_html/sites/all/modules/mlm/modules/analytics/mlm_analytics.module on line 35
+[16-Dec-2016 07:58:58 America/New_York] PHP Fatal error:  Class 'Google_Client' not found in /home/jcdev/public_html/sites/all/modules/mlm/modules/analytics/mlm_analytics.module on line 35
+[16-Dec-2016 08:01:46 America/New_York] PHP Fatal error:  Class 'Google_Client' not found in /home/jcdev/public_html/sites/all/modules/mlm/modules/analytics/mlm_analytics.module on line 35
+[16-Dec-2016 08:01:52 America/New_York] PHP Fatal error:  Class 'Google_Client' not found in /home/jcdev/public_html/sites/all/modules/mlm/modules/analytics/mlm_analytics.module on line 35
+[16-Dec-2016 08:02:00 America/New_York] PHP Fatal error:  Class 'Google_Client' not found in /home/jcdev/public_html/sites/all/modules/mlm/modules/analytics/mlm_analytics.module on line 35
+[16-Dec-2016 08:04:32 America/New_York] PHP Fatal error:  Class 'Google_Client' not found in /home/jcdev/public_html/sites/all/modules/mlm/modules/analytics/mlm_analytics.module on line 35
+[16-Dec-2016 08:04:42 America/New_York] PHP Fatal error:  Class 'Google_Client' not found in /home/jcdev/public_html/sites/all/modules/mlm/modules/analytics/mlm_analytics.module on line 35
+[16-Dec-2016 08:10:56 America/New_York] PHP Fatal error:  Class 'Google_Client' not found in /home/jcdev/public_html/sites/all/modules/mlm/modules/analytics/mlm_analytics.module on line 35
+[21-Dec-2016 07:06:27 America/New_York] PHP Fatal error:  Class 'SendGrid\Client' not found in /home/jcdev/public_html/sites/all/modules/sendgrid_integration/inc/sendgrid.mail.inc on line 46
+[21-Dec-2016 07:07:11 America/New_York] PHP Fatal error:  Class 'SendGrid\Client' not found in /home/jcdev/public_html/sites/all/modules/sendgrid_integration/inc/sendgrid.mail.inc on line 46
+[21-Dec-2016 07:07:37 America/New_York] PHP Fatal error:  Class 'SendGrid\Client' not found in /home/jcdev/public_html/sites/all/modules/sendgrid_integration/inc/sendgrid.mail.inc on line 46
+[21-Dec-2016 07:10:12 America/New_York] PHP Fatal error:  Class 'SendGrid\Client' not found in /home/jcdev/public_html/sites/all/modules/sendgrid_integration/inc/sendgrid.mail.inc on line 46
+[21-Dec-2016 07:12:54 America/New_York] PHP Fatal error:  Class 'SendGrid\Client' not found in /home/jcdev/public_html/sites/all/modules/sendgrid_integration/inc/sendgrid.mail.inc on line 46
+[21-Dec-2016 14:02:07 UTC] PHP Fatal error:  Call to undefined function Symfony\Polyfill\Mbstring\iconv() in phar:///opt/cpanel/composer/bin/composer/vendor/symfony/polyfill-mbstring/Mbstring.php on line 513
+[22-Dec-2016 09:08:59 America/New_York] PHP Fatal error:  Class 'SendGrid\Client' not found in /home/jcdev/public_html/sites/all/modules/sendgrid_integration/inc/sendgrid.mail.inc on line 46
+[25-Dec-2016 23:59:28 America/New_York] PHP Fatal error:  Class 'PHPMailer' not found in /home/jcdev/public_html/modules/phpmailer/phpmailer.install on line 17
+[25-Dec-2016 23:59:35 America/New_York] PHP Fatal error:  Class 'PHPMailer' not found in /home/jcdev/public_html/modules/phpmailer/phpmailer.install on line 17
+[26-Dec-2016 00:00:24 America/New_York] PHP Fatal error:  Class 'PHPMailer' not found in /home/jcdev/public_html/modules/phpmailer/phpmailer.install on line 17
+[26-Dec-2016 00:00:26 America/New_York] PHP Fatal error:  Class 'PHPMailer' not found in /home/jcdev/public_html/modules/phpmailer/phpmailer.install on line 17
+[26-Dec-2016 00:00:44 America/New_York] PHP Fatal error:  Class 'PHPMailer' not found in /home/jcdev/public_html/modules/phpmailer/phpmailer.install on line 17
+[26-Dec-2016 00:01:41 America/New_York] PHP Fatal error:  Class 'PHPMailer' not found in /home/jcdev/public_html/modules/phpmailer/phpmailer.install on line 17
+[26-Dec-2016 00:07:57 America/New_York] PHP Fatal error:  require_once(): Failed opening required '/home/jcdev/public_html/sites/all/modules/composer_manager/composer_manager.admin.inc' (include_path='.:/opt/cpanel/ea-php56/root/usr/share/pear') in /home/jcdev/public_html/includes/menu.inc on line 525
+[26-Dec-2016 00:10:01 America/New_York] PHP Fatal error:  require_once(): Failed opening required '/home/jcdev/public_html/sites/all/modules/sendgrid_integration/inc/sendgrid.mail.inc' (include_path='.:/opt/cpanel/ea-php56/root/usr/share/pear') in /home/jcdev/public_html/includes/bootstrap.inc on line 3190
+[26-Dec-2016 00:10:05 America/New_York] PHP Fatal error:  require_once(): Failed opening required '/home/jcdev/public_html/sites/all/modules/sendgrid_integration/inc/sendgrid.mail.inc' (include_path='.:/opt/cpanel/ea-php56/root/usr/share/pear') in /home/jcdev/public_html/includes/bootstrap.inc on line 3190
+[26-Dec-2016 00:10:14 America/New_York] PHP Fatal error:  require_once(): Failed opening required '/home/jcdev/public_html/sites/all/modules/sendgrid_integration/inc/sendgrid.mail.inc' (include_path='.:/opt/cpanel/ea-php56/root/usr/share/pear') in /home/jcdev/public_html/includes/bootstrap.inc on line 3190
+[26-Dec-2016 00:30:46 America/New_York] PHP Fatal error:  require_once(): Failed opening required '/home/jcdev/public_html/sites/all/modules/sendgrid_integration/inc/sendgrid.mail.inc' (include_path='.:/opt/cpanel/ea-php56/root/usr/share/pear') in /home/jcdev/public_html/includes/bootstrap.inc on line 3190
+[26-Dec-2016 00:35:10 America/New_York] PHP Fatal error:  require_once(): Failed opening required '/home/jcdev/public_html/sites/all/modules/sendgrid_integration/inc/sendgrid.mail.inc' (include_path='.:/opt/cpanel/ea-php56/root/usr/share/pear') in /home/jcdev/public_html/includes/bootstrap.inc on line 3190
+[04-Jan-2017 05:05:05 America/New_York] PHP Parse error:  syntax error, unexpected '}', expecting ',' or ';' in /home/jcdev/public_html/modules/php/php.module(80) : eval()'d code on line 25
+[04-Jan-2017 05:05:53 America/New_York] PHP Parse error:  syntax error, unexpected '}', expecting ',' or ';' in /home/jcdev/public_html/modules/php/php.module(80) : eval()'d code on line 25
+[04-Jan-2017 10:12:30 UTC] PHP Parse error:  syntax error, unexpected '}', expecting ',' or ';' in /home/jcdev/public_html/tests.php on line 23
+[04-Jan-2017 10:13:16 UTC] PHP Parse error:  syntax error, unexpected '}', expecting ',' or ';' in /home/jcdev/public_html/tests.php on line 21
+[04-Jan-2017 10:13:18 UTC] PHP Parse error:  syntax error, unexpected '}', expecting ',' or ';' in /home/jcdev/public_html/tests.php on line 21
+[04-Jan-2017 10:14:01 UTC] PHP Parse error:  syntax error, unexpected '}', expecting ',' or ';' in /home/jcdev/public_html/tests.php on line 21
+[04-Jan-2017 10:14:03 UTC] PHP Parse error:  syntax error, unexpected '}', expecting ',' or ';' in /home/jcdev/public_html/tests.php on line 21
+[04-Jan-2017 10:14:04 UTC] PHP Parse error:  syntax error, unexpected '}', expecting ',' or ';' in /home/jcdev/public_html/tests.php on line 21
+[04-Jan-2017 10:14:06 UTC] PHP Parse error:  syntax error, unexpected '}', expecting ',' or ';' in /home/jcdev/public_html/tests.php on line 21
+[04-Jan-2017 10:14:37 UTC] PHP Parse error:  syntax error, unexpected '}', expecting ',' or ';' in /home/jcdev/public_html/tests.php on line 21
+[04-Jan-2017 10:14:38 UTC] PHP Parse error:  syntax error, unexpected '}', expecting ',' or ';' in /home/jcdev/public_html/tests.php on line 21
+[04-Jan-2017 10:16:11 UTC] PHP Parse error:  syntax error, unexpected '}', expecting ',' or ';' in /home/jcdev/public_html/tests.php on line 21
+[04-Jan-2017 10:17:00 UTC] PHP Parse error:  syntax error, unexpected '}', expecting ',' or ';' in /home/jcdev/public_html/tests.php on line 18
+[04-Jan-2017 10:21:22 UTC] PHP Parse error:  syntax error, unexpected '}', expecting ',' or ';' in /home/jcdev/public_html/tests.php on line 21
+[04-Jan-2017 10:21:24 UTC] PHP Parse error:  syntax error, unexpected '}', expecting ',' or ';' in /home/jcdev/public_html/tests.php on line 21
+[04-Jan-2017 10:22:15 UTC] PHP Warning:  mysqli_connect(): (HY000/1045): Access denied for user 'root'@'localhost' (using password: NO) in /home/jcdev/public_html/tests.php on line 4
+[04-Jan-2017 10:24:21 UTC] PHP Parse error:  syntax error, unexpected ';' in /home/jcdev/public_html/tests.php on line 18
+[04-Jan-2017 10:25:07 UTC] PHP Parse error:  syntax error, unexpected ';' in /home/jcdev/public_html/tests.php on line 19
+[04-Jan-2017 10:25:08 UTC] PHP Parse error:  syntax error, unexpected ';' in /home/jcdev/public_html/tests.php on line 19
+[04-Jan-2017 10:25:53 UTC] PHP Parse error:  syntax error, unexpected ';' in /home/jcdev/public_html/tests.php on line 19
+[04-Jan-2017 10:25:54 UTC] PHP Parse error:  syntax error, unexpected ';' in /home/jcdev/public_html/tests.php on line 19
+[04-Jan-2017 05:53:15 America/New_York] PHP Parse error:  syntax error, unexpected '==' (T_IS_EQUAL) in /home/jcdev/public_html/modules/php/php.module(80) : eval()'d code on line 24
+[04-Jan-2017 10:53:41 UTC] PHP Parse error:  syntax error, unexpected '==' (T_IS_EQUAL) in /home/jcdev/public_html/tests.php on line 24
+[04-Jan-2017 11:32:50 UTC] PHP Warning:  mysqli_close() expects parameter 1 to be mysqli, null given in /home/jcdev/public_html/tests.php on line 58
+[04-Jan-2017 11:34:15 UTC] PHP Parse error:  syntax error, unexpected 'else' (T_ELSE) in /home/jcdev/public_html/tests.php on line 49
+[04-Jan-2017 11:34:17 UTC] PHP Parse error:  syntax error, unexpected 'else' (T_ELSE) in /home/jcdev/public_html/tests.php on line 49
+[04-Jan-2017 11:34:31 UTC] PHP Warning:  mysqli_close() expects parameter 1 to be mysqli, null given in /home/jcdev/public_html/tests.php on line 58
+[04-Jan-2017 11:34:32 UTC] PHP Warning:  mysqli_close() expects parameter 1 to be mysqli, null given in /home/jcdev/public_html/tests.php on line 58
+[04-Jan-2017 11:36:23 UTC] PHP Warning:  mysqli_close() expects parameter 1 to be mysqli, null given in /home/jcdev/public_html/tests.php on line 58
+[04-Jan-2017 11:36:26 UTC] PHP Warning:  mysqli_close() expects parameter 1 to be mysqli, null given in /home/jcdev/public_html/tests.php on line 58
+[04-Jan-2017 11:36:32 UTC] PHP Warning:  mysqli_close() expects parameter 1 to be mysqli, null given in /home/jcdev/public_html/tests.php on line 58
+[04-Jan-2017 11:36:33 UTC] PHP Warning:  mysqli_close() expects parameter 1 to be mysqli, null given in /home/jcdev/public_html/tests.php on line 58
+[04-Jan-2017 11:36:34 UTC] PHP Warning:  mysqli_close() expects parameter 1 to be mysqli, null given in /home/jcdev/public_html/tests.php on line 58
+[04-Jan-2017 11:37:29 UTC] PHP Warning:  mysqli_close() expects parameter 1 to be mysqli, null given in /home/jcdev/public_html/tests.php on line 58
+[04-Jan-2017 11:37:31 UTC] PHP Warning:  mysqli_close() expects parameter 1 to be mysqli, null given in /home/jcdev/public_html/tests.php on line 58
+[04-Jan-2017 06:47:20 America/New_York] PHP Parse error:  syntax error, unexpected 'display' (T_STRING), expecting ',' or ';' in /home/jcdev/public_html/modules/php/php.module(80) : eval()'d code on line 57
+[04-Jan-2017 11:55:19 UTC] PHP Warning:  mysqli_close() expects parameter 1 to be mysqli, null given in /home/jcdev/public_html/tests.php on line 58
+[04-Jan-2017 11:55:24 UTC] PHP Warning:  mysqli_close() expects parameter 1 to be mysqli, null given in /home/jcdev/public_html/tests.php on line 58
+[04-Jan-2017 11:55:24 UTC] PHP Warning:  mysqli_close() expects parameter 1 to be mysqli, null given in /home/jcdev/public_html/tests.php on line 58
+[04-Jan-2017 11:55:25 UTC] PHP Warning:  mysqli_close() expects parameter 1 to be mysqli, null given in /home/jcdev/public_html/tests.php on line 58
+[04-Jan-2017 11:55:35 UTC] PHP Warning:  mysqli_close() expects parameter 1 to be mysqli, null given in /home/jcdev/public_html/tests.php on line 58
+[04-Jan-2017 11:55:36 UTC] PHP Warning:  mysqli_close() expects parameter 1 to be mysqli, null given in /home/jcdev/public_html/tests.php on line 58
+[04-Jan-2017 12:09:38 UTC] PHP Parse error:  syntax error, unexpected '{' in /home/jcdev/public_html/tests.php on line 27
+[04-Jan-2017 12:09:40 UTC] PHP Parse error:  syntax error, unexpected '{' in /home/jcdev/public_html/tests.php on line 27
+[04-Jan-2017 12:10:45 UTC] PHP Parse error:  syntax error, unexpected '}' in /home/jcdev/public_html/tests.php on line 56
+[04-Jan-2017 12:10:46 UTC] PHP Parse error:  syntax error, unexpected '}' in /home/jcdev/public_html/tests.php on line 56
+[04-Jan-2017 12:12:23 UTC] PHP Parse error:  syntax error, unexpected '==' (T_IS_EQUAL) in /home/jcdev/public_html/tests.php on line 25
+[04-Jan-2017 12:12:26 UTC] PHP Parse error:  syntax error, unexpected '==' (T_IS_EQUAL) in /home/jcdev/public_html/tests.php on line 25
+[04-Jan-2017 12:19:18 UTC] PHP Warning:  mysqli_close() expects parameter 1 to be mysqli, null given in /home/jcdev/public_html/tests.php on line 61
+[04-Jan-2017 12:19:18 UTC] PHP Warning:  mysqli_close() expects parameter 1 to be mysqli, null given in /home/jcdev/public_html/tests.php on line 61
+[04-Jan-2017 12:19:20 UTC] PHP Warning:  mysqli_close() expects parameter 1 to be mysqli, null given in /home/jcdev/public_html/tests.php on line 61
+[04-Jan-2017 12:19:21 UTC] PHP Warning:  mysqli_close() expects parameter 1 to be mysqli, null given in /home/jcdev/public_html/tests.php on line 61
+[04-Jan-2017 12:23:50 UTC] PHP Parse error:  syntax error, unexpected end of file in /home/jcdev/public_html/tests.php on line 64
+[04-Jan-2017 12:23:52 UTC] PHP Parse error:  syntax error, unexpected end of file in /home/jcdev/public_html/tests.php on line 64
+[04-Jan-2017 12:23:53 UTC] PHP Parse error:  syntax error, unexpected end of file in /home/jcdev/public_html/tests.php on line 64
+[04-Jan-2017 12:23:54 UTC] PHP Parse error:  syntax error, unexpected end of file in /home/jcdev/public_html/tests.php on line 64
+[04-Jan-2017 12:23:56 UTC] PHP Parse error:  syntax error, unexpected end of file in /home/jcdev/public_html/tests.php on line 64
+[06-Jan-2017 17:31:46 America/New_York] PHP Parse error:  syntax error, unexpected 'print_r' (T_STRING), expecting ',' or ';' in /home/jcdev/public_html/modules/php/php.module(80) : eval()'d code on line 28
+[06-Jan-2017 17:31:51 America/New_York] PHP Parse error:  syntax error, unexpected 'print_r' (T_STRING), expecting ',' or ';' in /home/jcdev/public_html/modules/php/php.module(80) : eval()'d code on line 28
+[06-Jan-2017 17:32:11 America/New_York] PHP Parse error:  syntax error, unexpected 'print_r' (T_STRING), expecting ',' or ';' in /home/jcdev/public_html/modules/php/php.module(80) : eval()'d code on line 28
+[06-Jan-2017 17:32:15 America/New_York] PHP Parse error:  syntax error, unexpected 'print_r' (T_STRING), expecting ',' or ';' in /home/jcdev/public_html/modules/php/php.module(80) : eval()'d code on line 28
+[06-Jan-2017 17:36:54 America/New_York] PHP Parse error:  syntax error, unexpected 'print_r' (T_STRING), expecting ',' or ';' in /home/jcdev/public_html/modules/php/php.module(80) : eval()'d code on line 28
+[06-Jan-2017 17:36:58 America/New_York] PHP Parse error:  syntax error, unexpected 'print_r' (T_STRING), expecting ',' or ';' in /home/jcdev/public_html/modules/php/php.module(80) : eval()'d code on line 28
+[06-Jan-2017 17:37:04 America/New_York] PHP Parse error:  syntax error, unexpected 'print_r' (T_STRING), expecting ',' or ';' in /home/jcdev/public_html/modules/php/php.module(80) : eval()'d code on line 28
