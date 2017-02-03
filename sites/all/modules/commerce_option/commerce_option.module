@@ -500,7 +500,7 @@ function commerce_option_get_valuables($option) {
 
   $fields = field_info_instances('commerce_option', $option->set_id);
   $fields = array_keys($fields);
-
+  
   foreach ($fields as $field) {
     $option_extracted[$field] = $option->$field;
   }
