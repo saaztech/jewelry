@@ -16,6 +16,7 @@
   -moz-border-radius: 15px 0px 0px 15px;
   -webkit-border-radius: 10px 0px 0px 10px;
   border-radius: 10px 0px 0px 10px;
+  display: none;
 }
 .commerce-quantity-plusminus-link.commerce-quantity-plusminus-link-increase a {
   border-left: none;
@@ -23,4 +24,5 @@
   -moz-border-radius: 0px 15px 15px 0px;
   -webkit-border-radius: 0px 10px 10px 0px;
   border-radius: 0px 10px 10px 0px;
+  display: none;
 }
