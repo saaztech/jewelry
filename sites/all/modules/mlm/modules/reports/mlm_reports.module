@@ -340,7 +340,7 @@ function mlm_reports_orders_date_range($start = 0, $end = 0) {
   // Create the Query
   $query = new EntityFieldQuery();
   $query->entityCondition('entity_type', 'commerce_order');
-  $query->propertyCondition('status', array('completed', 'pending'));
+  $query->propertyCondition('status', array('completed', 'pending', 'canceled', 'checkout_complete', 'checkout_checkout', 'checkout_account', 'checkout_review', 'processing', 'cart', 'printed'));
   
   // Add a Start condition
   if ( !empty($start) ) {
