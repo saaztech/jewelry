@@ -18,6 +18,8 @@
       event.stopPropagation();
     });
       
+    $(".minus-quantity").attr('href', '#!');
+	$(".plus-quantity").attr('href', '#!');
       
   });
 }(jQuery));
