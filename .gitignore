@@ -4,3 +4,9 @@ sites/*/settings*.php
 # Ignore paths that contain user-generated content.
 sites/*/files
 sites/*/private
+
+# Ignore files and folder used for local implemetation purpose
+sites/bb.agency.com-localhost
+sites/jc.agency.com-localhost
+sites/default/default.settings.php
+sites/default/localsettings.php
